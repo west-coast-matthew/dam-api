@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Helper for the spec skills (create-spec, create-specs, list-specs,
-# cancel-spec, run-spec).
+# cancel-spec, run-spec, commit-spec-changes).
 # Compatible with macOS bash 3.2.
 #
 # Spec files live in ./specs and are named NNN-lower_case_name.md.
@@ -16,6 +16,8 @@
 #   create-many <names>      on a clean main branch: for each comma or
 #                            newline separated name, create the spec, commit
 #                            it, and create (not check out) its branch
+#   commit-merge <message>   on a spec branch: commit all changes with
+#                            <message>, switch to main, merge the branch in
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -134,6 +136,38 @@ cmd_create_many() {
   done
 }
 
+# Commit everything on the current spec branch, then merge it into main.
+# On a merge conflict the merge is aborted and you're returned to the spec branch.
+cmd_commit_merge() {
+  local message="$*" branch
+  message=$(echo "$message" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+  [[ -n "$message" ]] || die "a commit message is required"
+
+  branch=$(git -C "$ROOT" branch --show-current)
+  [[ -n "$branch" ]] || abort "not on a branch (detached HEAD). Aborting."
+  [[ "$branch" != "main" ]] || abort "already on main. Run this from a spec branch. Aborting."
+  [[ "$branch" =~ ^[0-9]{3}- ]] || abort "'$branch' is not a spec branch (expected NNN-name). Aborting."
+  git -C "$ROOT" show-ref --verify --quiet refs/heads/main || die "branch main does not exist"
+
+  git -C "$ROOT" add -A
+  if git -C "$ROOT" diff --cached --quiet; then
+    echo "nothing to commit on $branch; merging existing commits"
+  else
+    git -C "$ROOT" diff --cached --name-status | sed 's/^/  /'
+    git -C "$ROOT" commit -q -m "$message"
+    echo "committed on $branch: $(git -C "$ROOT" log --oneline -1)"
+  fi
+
+  git -C "$ROOT" checkout -q main
+  if git -C "$ROOT" merge --no-ff -q -m "Merge branch '$branch'" "$branch"; then
+    echo "merged $branch into main: $(git -C "$ROOT" log --oneline -1)"
+  else
+    git -C "$ROOT" merge --abort 2>/dev/null || true
+    git -C "$ROOT" checkout -q "$branch"
+    die "merge of $branch into main had conflicts. Merge aborted; back on $branch with your commit kept. Resolve with: git checkout main && git merge $branch"
+  fi
+}
+
 cmd_list() {
   local f
   for f in $(spec_files); do
@@ -200,5 +234,6 @@ case "$cmd" in
   list)       cmd_list ;;
   pick)       cmd_pick ;;
   create-many) cmd_create_many "$@" ;;
-  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  commit-merge) cmd_commit_merge "$@" ;;
+  *) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

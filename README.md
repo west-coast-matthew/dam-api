@@ -73,6 +73,7 @@ Run these skills inside Claude Code (start it with `claude` in this folder):
 |-------|--------------|
 | `/create-spec <name>` | Creates the next numbered spec, e.g. `/create-spec Add image upload` → `specs/004-add_image_upload.md`. Asks for a name if you leave it out. Creates and switches to git branch `004-add_image_upload`, then opens the spec in MacDown. |
 | `/create-specs <names>` | Creates several specs at once from comma- or newline-separated names, e.g. `/create-specs Asset model, Thumbnails, Video transcoding`. Must be run on `main` with no uncommitted changes, otherwise it stops with a warning. Each spec is committed to `main` (`Add spec NNN: <name>`) and gets its own branch, but you stay on `main` and nothing opens in MacDown. |
+| `/commit-spec-changes <message>` | Run on a spec branch when its work is done, e.g. `/commit-spec-changes Add thumbnail generation`. Stages and commits all changes with your message, switches to `main`, and merges the spec branch in (as a merge commit). Stops with a warning if you're on `main` or a non-spec branch. On a merge conflict it undoes the merge and puts you back on the spec branch with your commit kept. Doesn't push or delete the branch. |
 | `/list-specs` | Lists all specs with their status and lets you pick one to run. |
 | `/cancel-spec <number>` | Sets a spec's status to `cancelled`, e.g. `/cancel-spec 4`. |
 | `/run-spec <number>` | Switches to the spec's branch, implements it, runs the tests, and marks it `completed`, e.g. `/run-spec 4`. |
@@ -99,6 +100,7 @@ The skills share `.claude/scripts/specs.sh`, which you can also run directly:
 .claude/scripts/specs.sh list
 .claude/scripts/specs.sh create "My new spec"
 .claude/scripts/specs.sh create-many "First spec, Second spec"   # main only; commits + branches
+.claude/scripts/specs.sh commit-merge "Message"                 # spec branch only; commit + merge to main
 .claude/scripts/specs.sh set-status 4 cancelled
 ```
 
