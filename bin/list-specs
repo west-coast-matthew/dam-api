@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Interactive spec picker for the terminal.
+# Up/down (or k/j) to move, with wrap-around; enter runs the selected spec
+# in Claude Code via /run-spec; q or Esc quits.
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+
+if ! num="$(.claude/scripts/specs.sh pick)"; then
+  exit 0
+fi
+
+echo "Running spec $num..."
+exec claude "/run-spec $num"

@@ -1,0 +1,20 @@
+# Sample runtime configuration for dam-api.
+#
+# Copy to /etc/app-config/dam/application.properties and fill in real values:
+#   sudo mkdir -p /etc/app-config/dam
+#   sudo cp config/application.properties.sample /etc/app-config/dam/application.properties
+#
+# Values here override the defaults bundled in the jar.
+
+# ---- Database ----
+# MariaDB host name or IP address
+dam.db.server=localhost
+dam.db.port=3306
+# Database (schema) name
+dam.db.name=dam
+dam.db.username=dam_user
+dam.db.password=change_me
+
+# ---- Optional overrides ----
+#server.port=8080
+#logging.level.com.twofourseven.dam=DEBUG
