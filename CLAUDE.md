@@ -37,6 +37,14 @@ Other packages:
   responses in controllers. Unknown exceptions become 500 with a generic message (details are
   logged, never returned).
 - `config` — Spring `@Configuration` classes.
+- `entities.core` — core JPA entities (Workspace → Catalog → Asset, plus Category, Tag,
+  AssetVersion, Lightbox, LightboxItem, UserAssetInteraction, AssetDownloadLog). Entities use
+  Lombok `@Getter`/`@Setter`; ids are `UUID`s assigned in Java. Workspace and Catalog names are
+  required and unique (`@NotBlank`, `unique = true`). `MediaType` here is the asset enum, not
+  Spring's `org.springframework.http.MediaType`.
+- `WorkspaceInitializationService` creates the first workspace + catalog
+  (`initializeDefaultWorkspace()` or `setupWorkspace(...)`).
+- The schema is not generated (`spring.jpa.hibernate.ddl-auto=none`); tables must exist in MariaDB.
 
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
