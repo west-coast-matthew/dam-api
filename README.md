@@ -72,6 +72,7 @@ Run these skills inside Claude Code (start it with `claude` in this folder):
 | Skill | What it does |
 |-------|--------------|
 | `/create-spec <name>` | Creates the next numbered spec, e.g. `/create-spec Add image upload` → `specs/004-add_image_upload.md`. Asks for a name if you leave it out. Creates and switches to git branch `004-add_image_upload`, then opens the spec in MacDown. |
+| `/create-specs <names>` | Creates several specs at once from comma- or newline-separated names, e.g. `/create-specs Asset model, Thumbnails, Video transcoding`. Must be run on `main` with no uncommitted changes, otherwise it stops with a warning. Each spec is committed to `main` (`Add spec NNN: <name>`) and gets its own branch, but you stay on `main` and nothing opens in MacDown. |
 | `/list-specs` | Lists all specs with their status and lets you pick one to run. |
 | `/cancel-spec <number>` | Sets a spec's status to `cancelled`, e.g. `/cancel-spec 4`. |
 | `/run-spec <number>` | Switches to the spec's branch, implements it, runs the tests, and marks it `completed`, e.g. `/run-spec 4`. |
@@ -97,6 +98,7 @@ The skills share `.claude/scripts/specs.sh`, which you can also run directly:
 ```bash
 .claude/scripts/specs.sh list
 .claude/scripts/specs.sh create "My new spec"
+.claude/scripts/specs.sh create-many "First spec, Second spec"   # main only; commits + branches
 .claude/scripts/specs.sh set-status 4 cancelled
 ```
 

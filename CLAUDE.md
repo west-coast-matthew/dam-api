@@ -71,7 +71,8 @@ Image operations shell out to command line tools that are already installed (Ima
 ## Specs workflow
 
 Work is tracked as specs in `specs/NNN-lower_case_name.md` with a `**Status:** ready|completed|cancelled`
-line under the title. Skills in `.claude/skills/`: `create-spec`, `list-specs`, `cancel-spec`,
+line under the title. Skills in `.claude/skills/`: `create-spec`, `create-specs` (batch, main only), `list-specs`, `cancel-spec`,
 `run-spec`. They share `.claude/scripts/specs.sh` (bash 3.2 compatible, since it runs on macOS).
-Each spec gets its own git branch named after the file without `.md`. Only set a spec to
+Each spec gets its own git branch named after the file without `.md`. Numbers come from the spec
+files on the current branch, so create specs on `main` (`create-specs` enforces this) to keep numbers unique. Only set a spec to
 `completed` after its work is done and `mvn -B test` passes.

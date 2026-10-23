@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Helper for the spec skills (create-spec, list-specs, cancel-spec, run-spec).
+# Helper for the spec skills (create-spec, create-specs, list-specs,
+# cancel-spec, run-spec).
 # Compatible with macOS bash 3.2.
 #
 # Spec files live in ./specs and are named NNN-lower_case_name.md.
@@ -12,6 +13,9 @@
 #   set-status <number> <s>  set status to ready|completed|cancelled
 #   list                     print "NNN<TAB>status<TAB>file" per spec
 #   pick                     interactive picker; prints the chosen number
+#   create-many <names>      on a clean main branch: for each comma or
+#                            newline separated name, create the spec, commit
+#                            it, and create (not check out) its branch
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -19,6 +23,7 @@ SPECS_DIR="$ROOT/specs"
 STATUS_RE='^\*\*Status:\*\* '
 
 die() { echo "ERROR: $*" >&2; exit 1; }
+abort() { echo "WARNING: $*" >&2; exit 1; }
 
 spec_files() {
   ls "$SPECS_DIR" 2>/dev/null | grep -E '^[0-9]+-.*\.md$' | sort -n || true
@@ -97,6 +102,38 @@ cmd_set_status() {
   echo "$(basename "$file"): $status"
 }
 
+# Batch create. Must be on main with a clean working tree. Each spec gets its
+# own commit on main and a branch at that commit; the current branch stays main.
+cmd_create_many() {
+  local branch
+  branch=$(git -C "$ROOT" branch --show-current)
+  [[ "$branch" == "main" ]] || abort "create-specs must be run on the main branch (current branch: ${branch:-detached HEAD}). Aborting; nothing was created."
+  [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || abort "main has uncommitted changes. Commit or stash them first. Aborting; nothing was created."
+
+  # Split on commas and newlines, trim, drop blanks
+  local names=() line
+  while IFS= read -r line; do
+    line=$(echo "$line" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+    [[ -n "$line" ]] && names+=("$line")
+  done < <(printf '%s\n' "$*" | tr ',\r' '\n\n')
+  [[ ${#names[@]} -gt 0 ]] || die "at least one spec name is required"
+
+  local name file base num
+  for name in "${names[@]}"; do
+    file=$(cmd_create "$name")
+    base=$(basename "$file" .md)
+    num=${base%%-*}
+    if git -C "$ROOT" show-ref --verify --quiet "refs/heads/$base"; then
+      rm -f "$file"
+      die "branch $base already exists. Stopped before '$name'; specs listed above were created."
+    fi
+    git -C "$ROOT" add "$file"
+    git -C "$ROOT" commit -q -m "Add spec $num: $name" -- "$file"
+    git -C "$ROOT" branch "$base"
+    printf 'created\t%s\t%s\n' "specs/$base.md" "$base"
+  done
+}
+
 cmd_list() {
   local f
   for f in $(spec_files); do
@@ -162,5 +199,6 @@ case "$cmd" in
   set-status) cmd_set_status "${1:?spec number required}" "${2:-}" ;;
   list)       cmd_list ;;
   pick)       cmd_pick ;;
-  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  create-many) cmd_create_many "$@" ;;
+  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
