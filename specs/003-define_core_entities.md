@@ -1,6 +1,6 @@
 # define core entities
 
-**Status:** ready
+**Status:** completed
 
 ## Goal
 
