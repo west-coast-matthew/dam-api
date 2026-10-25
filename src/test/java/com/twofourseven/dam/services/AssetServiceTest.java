@@ -66,9 +66,12 @@ class AssetServiceTest {
     private AssetDownloadLogRepository downloadLogRepository;
     @Mock
     private AssetStorageService storage;
+    @Mock
+    private CategoryService categoryService;
 
     private AssetService service;
     private final Catalog catalog = Fixtures.catalog("Photos");
+    private final Category defaultCategory = Category.createDefaultFor(catalog);
     /** Paths written to storage, in order, with their content. */
     private final List<String> stored = new ArrayList<>();
 
@@ -76,7 +79,9 @@ class AssetServiceTest {
     void setUp() {
         UploadedMediaReader reader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofMegabytes(1)));
         service = new AssetService(assetRepository, assetVersionRepository, catalogRepository, categoryRepository,
-                tagRepository, lightboxItemRepository, interactionRepository, downloadLogRepository, storage, reader);
+                tagRepository, lightboxItemRepository, interactionRepository, downloadLogRepository, storage, reader,
+                categoryService);
+        lenient().when(categoryService.defaultCategoryOf(catalog)).thenReturn(defaultCategory);
         lenient().when(storage.store(any(), anyString(), any())).thenAnswer(inv -> {
             byte[] bytes = inv.<InputStream>getArgument(2).readAllBytes();
             stored.add(inv.getArgument(1) + "=" + new String(bytes));
@@ -142,6 +147,49 @@ class AssetServiceTest {
         assertThat(result.mediaType()).isEqualTo(MediaType.VIDEO);
         assertThat(result.versioningEnabled()).isFalse();
         assertThat(stored).singleElement().asString().endsWith("/original.mp4=video!");
+    }
+
+    @Test
+    void createWithoutCategoriesUsesDefault() {
+        when(catalogRepository.findById(catalog.getId())).thenReturn(Optional.of(catalog));
+
+        AssetInstanceDto result = service.create(AssetInstanceDto.request(catalog.getId(), null, null, null, null),
+                file("a.png", "x"));
+
+        assertThat(result.categoryIds()).containsExactly(defaultCategory.getId());
+    }
+
+    @Test
+    void createWithCategoriesDoesNotAddDefault() {
+        Category animals = Fixtures.category(catalog, null, "Animals");
+        when(catalogRepository.findById(catalog.getId())).thenReturn(Optional.of(catalog));
+        when(categoryRepository.findAllById(any())).thenReturn(List.of(animals));
+
+        AssetInstanceDto result = service.create(AssetInstanceDto.request(catalog.getId(), null, null,
+                List.of(animals.getId()), null), file("a.png", "x"));
+
+        assertThat(result.categoryIds()).containsExactly(animals.getId());
+        verify(categoryService, never()).defaultCategoryOf(any());
+    }
+
+    @Test
+    void updateWithEmptyCategoriesFallsBackToDefault() {
+        Asset asset = existingAsset(false);
+        asset.getCategories().add(Fixtures.category(catalog, null, "Animals"));
+        when(categoryRepository.findAllById(any())).thenReturn(List.of());
+
+        AssetInstanceDto result = service.update(asset.getId(), AssetInstanceDto.request(null, null, null, List.of(), null));
+
+        assertThat(result.categoryIds()).containsExactly(defaultCategory.getId());
+    }
+
+    @Test
+    void savingAnOlderAssetWithoutCategoriesAssignsDefault() {
+        Asset asset = existingAsset(false);
+
+        service.replaceFile(asset.getId(), file("photo.png", "new"));
+
+        assertThat(asset.getCategories()).containsExactly(defaultCategory);
     }
 
     @Test

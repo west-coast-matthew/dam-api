@@ -1,6 +1,7 @@
 package com.twofourseven.dam.services;
 
 import com.twofourseven.dam.entities.core.Catalog;
+import com.twofourseven.dam.entities.core.Category;
 import com.twofourseven.dam.entities.core.Workspace;
 import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.exceptions.ConflictException;
@@ -18,7 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-/** CRUD for catalogs. Names are unique (case-insensitive); a catalog never changes workspace. */
+/**
+ * CRUD for catalogs. Names are unique (case-insensitive); a catalog never changes workspace.
+ * A new catalog gets its default category (see {@link Category#createDefaultFor}).
+ */
 @Service
 public class CatalogService {
 
@@ -66,6 +70,7 @@ public class CatalogService {
         catalog.setName(name);
         catalog.setDescription(Strings.trim(dto.description()));
         workspace.addCatalog(catalog);
+        Category.createDefaultFor(catalog);
         Catalog saved = catalogRepository.save(catalog);
         log.info("Created catalog '{}' ({}) in workspace {}", saved.getName(), saved.getId(), workspace.getId());
         return toDto(saved);

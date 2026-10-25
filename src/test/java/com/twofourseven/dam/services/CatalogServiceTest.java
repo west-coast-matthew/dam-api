@@ -1,6 +1,7 @@
 package com.twofourseven.dam.services;
 
 import com.twofourseven.dam.entities.core.Catalog;
+import com.twofourseven.dam.entities.core.Category;
 import com.twofourseven.dam.entities.core.Workspace;
 import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.exceptions.ConflictException;
@@ -52,6 +53,13 @@ class CatalogServiceTest {
         assertThat(result.name()).isEqualTo("Photos");
         assertThat(result.workspaceId()).isEqualTo(workspace.getId());
         assertThat(workspace.getCatalogs()).extracting(Catalog::getName).containsExactly("Photos");
+        Catalog created = workspace.getCatalogs().iterator().next();
+        assertThat(created.getCategories()).singleElement().satisfies(c -> {
+            assertThat(c.getIsDefault()).isTrue();
+            assertThat(c.getName()).isEqualTo(Category.DEFAULT_NAME);
+            assertThat(c.getParent()).isNull();
+            assertThat(c.getCatalog()).isSameAs(created);
+        });
     }
 
     @Test

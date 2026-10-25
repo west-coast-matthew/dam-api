@@ -1,6 +1,7 @@
 package com.twofourseven.dam.services;
 
 import com.twofourseven.dam.entities.core.Catalog;
+import com.twofourseven.dam.entities.core.Category;
 import com.twofourseven.dam.entities.core.Workspace;
 import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.exceptions.ConflictException;
@@ -90,6 +91,10 @@ class WorkspaceInitializationServiceTest {
         assertThat(catalog.getName()).isEqualTo("Campaigns");
         assertThat(catalog.getDescription()).isEqualTo("2026 campaigns");
         assertThat(catalog.getWorkspace()).isSameAs(saved);
+        assertThat(catalog.getCategories()).singleElement().satisfies(c -> {
+            assertThat(c.getIsDefault()).isTrue();
+            assertThat(c.getName()).isEqualTo(Category.DEFAULT_NAME);
+        });
     }
 
     @Test

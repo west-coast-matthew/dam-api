@@ -20,6 +20,9 @@ import java.util.UUID;
 /**
  * CRUD for categories. Top-level category names are unique (case-insensitive) within their catalog.
  * A category's parent must be in the same catalog and cannot be one of its own descendants.
+ *
+ * <p>Each catalog has a default category (see {@link #defaultCategory(UUID)}). It can be renamed but
+ * not deleted or moved under another category.
  */
 @Service
 public class CategoryService {
@@ -42,6 +45,27 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public CategoryInstanceDto get(UUID id) {
         return toDto(find(id));
+    }
+
+    /**
+     * The default category of a catalog. Created if missing (e.g. a catalog from before defaults existed).
+     *
+     * @throws ResourceNotFoundException if the catalog doesn't exist
+     */
+    @Transactional
+    public CategoryInstanceDto defaultCategory(UUID catalogId) {
+        Catalog catalog = catalogRepository.findById(catalogId)
+                .orElseThrow(() -> new ResourceNotFoundException("Catalog " + catalogId + " not found"));
+        return toDto(defaultCategoryOf(catalog));
+    }
+
+    /** The default category entity of {@code catalog}, created and saved if missing. */
+    @Transactional
+    public Category defaultCategoryOf(Catalog catalog) {
+        return categoryRepository.findFirstByCatalogIdAndIsDefaultTrue(catalog.getId()).orElseGet(() -> {
+            log.info("Catalog {} has no default category; creating it", catalog.getId());
+            return categoryRepository.save(Category.createDefaultFor(catalog));
+        });
     }
 
     @Transactional
@@ -78,16 +102,29 @@ public class CategoryService {
         return toDto(categoryRepository.save(category));
     }
 
-    /** Removes the category from any assets. @throws ConflictException if it has subcategories */
+    /**
+     * Removes the category from its assets; assets left without a category move to the catalog's
+     * default category. @throws ConflictException if it is the default or has subcategories
+     */
     @Transactional
     public void delete(UUID id) {
         Category category = find(id);
+        if (Boolean.TRUE.equals(category.getIsDefault())) {
+            throw new ConflictException("The default category of a catalog cannot be deleted");
+        }
         if (categoryRepository.existsByParentId(id)) {
             throw new ConflictException("Category '" + category.getName() + "' has subcategories; delete or move them first");
         }
         // Asset owns the asset_categories join table, so unlink from that side
+        Category fallback = null;
         for (Asset asset : category.getAssets()) {
             asset.getCategories().remove(category);
+            if (asset.getCategories().isEmpty()) {
+                if (fallback == null) {
+                    fallback = defaultCategoryOf(category.getCatalog());
+                }
+                asset.getCategories().add(fallback);
+            }
         }
         if (category.getParent() != null) {
             category.getParent().getChildren().remove(category);
@@ -106,6 +143,9 @@ public class CategoryService {
         Category parent = dto.parentId() == null ? null : categoryRepository.findById(dto.parentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Parent category " + dto.parentId() + " not found"));
         if (parent != null) {
+            if (Boolean.TRUE.equals(category.getIsDefault())) {
+                throw new BadRequestException("The default category must stay top-level");
+            }
             if (!parent.getCatalog().getId().equals(category.getCatalog().getId())) {
                 throw new BadRequestException("Parent category must be in the same catalog");
             }
@@ -137,6 +177,7 @@ public class CategoryService {
 
     static CategoryInstanceDto toDto(Category c) {
         UUID parentId = c.getParent() == null ? null : c.getParent().getId();
-        return new CategoryInstanceDto(c.getId(), c.getCatalog().getId(), parentId, c.getName(), c.getSlug());
+        return new CategoryInstanceDto(c.getId(), c.getCatalog().getId(), parentId, c.getName(), c.getSlug(),
+                Boolean.TRUE.equals(c.getIsDefault()));
     }
 }

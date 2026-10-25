@@ -40,6 +40,9 @@ import java.util.UUID;
 /**
  * Manages assets: upload, metadata updates, file replacement (with optional versioning) and delete.
  *
+ * <p>Categories: every asset has at least one. An asset created without categories, or updated with
+ * an empty list, is put in its catalog's default category.
+ *
  * <p>Versioning: when an asset's {@code versioningEnabled} flag is on, replacing its file keeps the
  * previous file on disk and records it as an {@link AssetVersion}; the asset keeps its id and points
  * at the new file. When the flag is off, the file is overwritten.
@@ -59,13 +62,15 @@ public class AssetService {
     private final AssetDownloadLogRepository downloadLogRepository;
     private final AssetStorageService storage;
     private final UploadedMediaReader uploadReader;
+    private final CategoryService categoryService;
 
     public AssetService(AssetRepository assetRepository, AssetVersionRepository assetVersionRepository,
                         CatalogRepository catalogRepository, CategoryRepository categoryRepository,
                         TagRepository tagRepository, LightboxItemRepository lightboxItemRepository,
                         UserAssetInteractionRepository interactionRepository,
                         AssetDownloadLogRepository downloadLogRepository,
-                        AssetStorageService storage, UploadedMediaReader uploadReader) {
+                        AssetStorageService storage, UploadedMediaReader uploadReader,
+                        CategoryService categoryService) {
         this.assetRepository = assetRepository;
         this.assetVersionRepository = assetVersionRepository;
         this.catalogRepository = catalogRepository;
@@ -76,6 +81,7 @@ public class AssetService {
         this.downloadLogRepository = downloadLogRepository;
         this.storage = storage;
         this.uploadReader = uploadReader;
+        this.categoryService = categoryService;
     }
 
     /** All assets, or only those in {@code catalogId} when it is not null. Newest first. */
@@ -127,6 +133,7 @@ public class AssetService {
             throw new UncheckedIOException(e);
         }
 
+        ensureCategory(asset);
         Asset saved = assetRepository.save(asset);
         log.info("Created {} asset '{}' ({}) in catalog {}", saved.getMediaType(), saved.getOriginalFilename(),
                 saved.getId(), catalog.getId());
@@ -144,6 +151,7 @@ public class AssetService {
             throw new BadRequestException("An asset cannot be moved to another catalog");
         }
         applyMetadata(asset, dto);
+        ensureCategory(asset);
         return toDto(assetRepository.save(asset));
     }
 
@@ -185,6 +193,7 @@ public class AssetService {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+        ensureCategory(asset);
         return toDto(assetRepository.save(asset));
     }
 
@@ -219,6 +228,13 @@ public class AssetService {
         }
         if (dto.tags() != null) {
             asset.setTags(resolveTags(asset.getCatalog(), dto.tags()));
+        }
+    }
+
+    /** Every asset needs a category: one without any goes in its catalog's default category. */
+    private void ensureCategory(Asset asset) {
+        if (asset.getCategories().isEmpty()) {
+            asset.getCategories().add(categoryService.defaultCategoryOf(asset.getCatalog()));
         }
     }
 

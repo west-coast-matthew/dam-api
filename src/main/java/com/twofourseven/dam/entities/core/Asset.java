@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -84,6 +85,8 @@ public class Asset {
     @OneToMany(mappedBy = "asset", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<AssetVersion> versions = new HashSet<>();
 
+    /** At least one; assets without an explicit category go in the catalog's default category. */
+    @Size(min = 1, message = "An asset must have at least one category")
     @ManyToMany
     @JoinTable(
         name = "asset_categories",

@@ -34,6 +34,12 @@ public class CategoryController {
         return service.list(catalogId);
     }
 
+    /** The catalog's default category, where assets without a category go. */
+    @GetMapping("/default")
+    public CategoryInstanceDto defaultCategory(@RequestParam UUID catalogId) {
+        return service.defaultCategory(catalogId);
+    }
+
     @GetMapping("/{id}")
     public CategoryInstanceDto get(@PathVariable UUID id) {
         return service.get(id);

@@ -1,6 +1,7 @@
 package com.twofourseven.dam.services;
 
 import com.twofourseven.dam.entities.core.Catalog;
+import com.twofourseven.dam.entities.core.Category;
 import com.twofourseven.dam.entities.core.Workspace;
 import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.exceptions.ConflictException;
@@ -21,7 +22,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Sets up a new instance of the application: creates the initial workspace and its first catalog.
+ * Sets up a new instance of the application: creates the initial workspace, its first catalog and
+ * that catalog's default category.
  */
 @Service
 public class WorkspaceInitializationService {
@@ -82,6 +84,7 @@ public class WorkspaceInitializationService {
         catalog.setName(trim(catalogName));
         catalog.setDescription(trim(catalogDescription));
         workspace.addCatalog(catalog);
+        Category.createDefaultFor(catalog);
 
         validate(workspace, catalog);
 
@@ -92,7 +95,7 @@ public class WorkspaceInitializationService {
             throw new ConflictException("A catalog named '" + catalog.getName() + "' already exists");
         }
 
-        // Catalog is saved through the workspace's cascade
+        // Catalog and its default category are saved through the cascades
         Workspace saved = workspaceRepository.save(workspace);
         log.info("Created workspace '{}' ({}) with catalog '{}'", saved.getName(), saved.getId(), catalog.getName());
         return toVO(saved);

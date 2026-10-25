@@ -49,11 +49,26 @@ class CategoryControllerTest {
 
     @Test
     void listByCatalog() throws Exception {
-        when(service.list(catalogId)).thenReturn(List.of(new CategoryInstanceDto(id, catalogId, null, "Animals", "animals")));
+        when(service.list(catalogId)).thenReturn(List.of(new CategoryInstanceDto(id, catalogId, null, "Animals", "animals", false)));
 
         mockMvc.perform(get("/categories").param("catalogId", catalogId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].slug").value("animals"));
+    }
+
+    @Test
+    void defaultCategoryForCatalog() throws Exception {
+        when(service.defaultCategory(catalogId)).thenReturn(new CategoryInstanceDto(id, catalogId, null, "Default", "default", true));
+
+        mockMvc.perform(get("/categories/default").param("catalogId", catalogId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id.toString()))
+                .andExpect(jsonPath("$.defaultCategory").value(true));
+    }
+
+    @Test
+    void defaultCategoryRequiresCatalogId() throws Exception {
+        mockMvc.perform(get("/categories/default")).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -81,7 +96,7 @@ class CategoryControllerTest {
     @Test
     void updateMovesUnderParent() throws Exception {
         UUID parentId = UUID.randomUUID();
-        when(service.update(eq(id), any())).thenReturn(new CategoryInstanceDto(id, catalogId, parentId, "Dogs", "dogs"));
+        when(service.update(eq(id), any())).thenReturn(new CategoryInstanceDto(id, catalogId, parentId, "Dogs", "dogs", false));
 
         mockMvc.perform(put("/categories/{id}", id).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"parentId\":\"" + parentId + "\",\"name\":\"Dogs\"}"))

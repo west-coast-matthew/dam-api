@@ -48,6 +48,15 @@ Other packages:
 - The schema is not generated (`spring.jpa.hibernate.ddl-auto=none`); tables must exist in MariaDB.
   Schema changes go in `db/NNN-description.sql` (numbered after the spec) and are applied by hand.
 
+Default categories (spec 014): every catalog has one top-level default category
+(`Category.isDefault`), created with the catalog via `Category.createDefaultFor(catalog)` in both
+`CatalogService.create` and `WorkspaceInitializationService`. Look it up with
+`CategoryService.defaultCategoryOf(catalog)` / `defaultCategory(catalogId)` (`GET /categories/default?catalogId=`),
+which also creates it for older catalogs. An asset must have at least one category (`@Size(min = 1)`
+on `Asset.categories`); `AssetService` puts assets without one in the default. The default can be
+renamed but not deleted (409) or nested (400); deleting another category moves assets left without
+a category to the default.
+
 REST endpoints (spec 004): `/workspaces`, `/catalogs`, `/categories`, `/lightboxes`, `/assets`, using
 the `*InstanceDto` records in `vo`. Create = 201 with Location, delete = 204. Deleting a workspace,
 catalog or category that still has children is a 409. Top-level category names are unique per catalog.
