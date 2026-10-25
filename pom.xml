@@ -28,6 +28,11 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<springdoc.version>3.1.1</springdoc.version>
+		<!-- API docs generator (tag "api-docs") only runs with -Papi-docs; see bin/generate-api-docs -->
+		<surefire.groups></surefire.groups>
+		<surefire.excludedGroups>api-docs</surefire.excludedGroups>
+		<api-docs.output-dir>${project.build.directory}/api-docs</api-docs.output-dir>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -86,6 +91,13 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- OpenAPI doc generation from the controllers. Test scope: nothing is exposed at runtime -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+			<version>${springdoc.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -104,6 +116,18 @@
 				</configuration>
 			</plugin>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<groups>${surefire.groups}</groups>
+					<excludedGroups>${surefire.excludedGroups}</excludedGroups>
+					<systemPropertyVariables>
+						<api-docs.output-dir>${api-docs.output-dir}</api-docs.output-dir>
+						<api-docs.version>${project.version}</api-docs.version>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
@@ -117,5 +141,18 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- mvn -B test -Papi-docs : generate static OpenAPI docs into target/api-docs -->
+		<profile>
+			<id>api-docs</id>
+			<properties>
+				<surefire.groups>api-docs</surefire.groups>
+				<surefire.excludedGroups></surefire.excludedGroups>
+				<!-- The generator isn't named *Test, so name it explicitly -->
+				<test>ApiDocsGenerator</test>
+			</properties>
+		</profile>
+	</profiles>
 
 </project>

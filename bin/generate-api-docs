@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Generate static OpenAPI documentation from the controllers.
+#
+# Writes openapi.json and index.html (open it in a browser) to target/api-docs,
+# or to the folder given as the first argument. No server is started and no
+# database is needed.
+#
+# Usage: bin/generate-api-docs [output-dir]
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+
+OUTPUT_DIR="${1:-$PROJECT_DIR/target/api-docs}"
+case "$OUTPUT_DIR" in
+  /*) ;;
+  *) OUTPUT_DIR="$PWD/$OUTPUT_DIR" ;;
+esac
+
+# Prefer an installed Maven; fall back to the project wrapper
+if command -v mvn >/dev/null 2>&1; then
+  MVN=mvn
+else
+  MVN=./mvnw
+fi
+
+echo ">> Generating API docs into $OUTPUT_DIR"
+rm -f "$OUTPUT_DIR/index.html" "$OUTPUT_DIR/openapi.json"
+"$MVN" -B -q test -Papi-docs "-Dapi-docs.output-dir=$OUTPUT_DIR"
+
+if [[ ! -f "$OUTPUT_DIR/index.html" ]]; then
+  echo "ERROR: $OUTPUT_DIR/index.html was not generated" >&2
+  exit 1
+fi
+echo ">> Done: $OUTPUT_DIR/index.html"

@@ -49,6 +49,27 @@ mvn test       # unit tests (no database needed)
 mvn package    # build target/dam-api-0.0.1-SNAPSHOT.jar
 ```
 
+### API documentation
+
+Generate static OpenAPI docs from the controllers (uses [springdoc-openapi](https://springdoc.org)):
+
+```bash
+bin/generate-api-docs                 # writes target/api-docs/
+bin/generate-api-docs docs/api        # or to a folder of your choice
+open target/api-docs/index.html
+```
+
+| File | Contents |
+|------|----------|
+| `index.html` | Browsable docs (Redoc). The spec is embedded, so it opens straight from disk; the Redoc script loads from a CDN, so viewing needs internet access. |
+| `openapi.json` | OpenAPI 3.1 spec, for client generators or tools like Postman. |
+
+No server is started and no database is needed: the app context runs with a mock web environment
+and the spec is read in-process. The same thing via Maven is `mvn -B test -Papi-docs`
+(add `-Dapi-docs.output-dir=/some/dir` to change the folder). Plain `mvn test` skips it.
+springdoc is a test-scope dependency only, so the running app has no `/v3/api-docs` or Swagger UI
+endpoint.
+
 Logging is at DEBUG for `com.twofourseven.dam` and goes to the console. Change levels with
 `logging.level.*` in `application.properties`.
 
@@ -107,6 +128,7 @@ The skills share `.claude/scripts/specs.sh`, which you can also run directly:
 
 ```
 bin/deploy                      build + launch with /etc/app-config/dam/application.properties
+bin/generate-api-docs           static OpenAPI docs -> target/api-docs
 bin/list-specs                  keyboard spec picker
 config/application.properties.sample
 specs/                          numbered specs

@@ -15,6 +15,7 @@ mvn -B test -Dtest=HeartbeatServiceTest            # one test class
 mvn -B test -Dtest=HeartbeatServiceTest#reportsUpWhenConnectionIsValid   # one test
 mvn -B package                      # build the jar
 bin/deploy [--skip-tests]           # build and run with /etc/app-config/dam/application.properties
+bin/generate-api-docs [dir]         # static OpenAPI docs (openapi.json + index.html), default target/api-docs
 ```
 
 Use the installed `mvn`. The `./mvnw` wrapper is also present but may not be able to download
@@ -88,6 +89,11 @@ checks the database connection. New dependency checks go in `HeartbeatService.ch
 - Controller tests: `MockMvcBuilders.standaloneSetup(controller).setControllerAdvice(new GlobalExceptionHandler())`
   (see `HeartbeatControllerTest`).
 - Test packages mirror main packages.
+- API docs (spec 013): `docs/ApiDocsGenerator` (JUnit tag `api-docs`) loads the context with a mock
+  web environment and writes the springdoc spec + a Redoc page. It only runs with `-Papi-docs`.
+  springdoc is test scope, so controllers carry no OpenAPI annotations; status codes and error
+  responses come from `docs/ConventionalResponses` (201 for POST create, 204 for DELETE, errors as
+  `ErrorResponseVO`) and titles from `docs/ReadableOperations`. Update those if the conventions change.
 
 ## Image processing
 
