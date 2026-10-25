@@ -18,6 +18,8 @@ import com.twofourseven.dam.repositories.TagRepository;
 import com.twofourseven.dam.repositories.UserAssetInteractionRepository;
 import com.twofourseven.dam.vo.AssetInstanceDto;
 import com.twofourseven.dam.vo.AssetVersionVO;
+import com.twofourseven.dam.vo.BulkUploadResultVO;
+import com.twofourseven.dam.vo.SkippedFileVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -112,23 +115,13 @@ public class AssetService {
      */
     @Transactional
     public AssetInstanceDto create(AssetInstanceDto dto, MultipartFile file) {
-        if (dto == null || dto.catalogId() == null) {
-            throw new BadRequestException("catalogId is required");
-        }
-        Catalog catalog = catalogRepository.findById(dto.catalogId())
-                .orElseThrow(() -> new ResourceNotFoundException("Catalog " + dto.catalogId() + " not found"));
-
+        Catalog catalog = requireCatalog(dto);
         Asset asset = new Asset();
         asset.setCatalog(catalog);
         applyMetadata(asset, dto);
 
-        UUID workspaceId = catalog.getWorkspace().getId();
-        String directory = AssetStorageService.assetDirectory(catalog.getId(), asset.getId());
         try (UploadedMedia media = uploadReader.read(file)) {
-            String path = directory + "/original." + media.type().extension();
-            TransactionCallbacks.afterRollback(() -> storage.deleteDirectory(workspaceId, directory));
-            long size = storage.store(workspaceId, path, media.content());
-            setFile(asset, media, path, size);
+            storeOriginal(asset, media);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -138,6 +131,56 @@ public class AssetService {
         log.info("Created {} asset '{}' ({}) in catalog {}", saved.getMediaType(), saved.getOriginalFilename(),
                 saved.getId(), catalog.getId());
         return toDto(saved);
+    }
+
+    /**
+     * Bulk upload: creates one asset per supported media file in a zip. The writable fields of
+     * {@code dto} (catalog, categories, tags, metadata, versioning) apply to every asset; assets get
+     * the catalog's default category when no categories are given. Unsupported files are skipped and
+     * reported. All assets are saved in one transaction, so a failure creates none of them.
+     */
+    @Transactional
+    public BulkUploadResultVO createBulk(AssetInstanceDto dto, MultipartFile zip) {
+        Catalog catalog = requireCatalog(dto);
+        // Resolve shared metadata once rather than per file
+        Set<Category> categories = dto.categoryIds() == null || dto.categoryIds().isEmpty()
+                ? Set.of(categoryService.defaultCategoryOf(catalog))
+                : resolveCategories(catalog, dto.categoryIds());
+        Set<Tag> tags = dto.tags() == null ? Set.of() : resolveTags(catalog, dto.tags());
+
+        List<AssetInstanceDto> created = new ArrayList<>();
+        List<SkippedFileVO> skipped = uploadReader.readEach(zip, media -> {
+            Asset asset = new Asset();
+            asset.setCatalog(catalog);
+            asset.setVersioningEnabled(Boolean.TRUE.equals(dto.versioningEnabled()));
+            if (dto.customMetadata() != null) {
+                asset.setCustomMetadata(new HashMap<>(dto.customMetadata()));
+            }
+            asset.setCategories(new HashSet<>(categories));
+            asset.setTags(new HashSet<>(tags));
+            storeOriginal(asset, media);
+            created.add(toDto(assetRepository.save(asset)));
+        });
+        log.info("Bulk upload created {} assets in catalog {} ({} files skipped)", created.size(), catalog.getId(), skipped.size());
+        return new BulkUploadResultVO(created, skipped);
+    }
+
+    private Catalog requireCatalog(AssetInstanceDto dto) {
+        if (dto == null || dto.catalogId() == null) {
+            throw new BadRequestException("catalogId is required");
+        }
+        return catalogRepository.findById(dto.catalogId())
+                .orElseThrow(() -> new ResourceNotFoundException("Catalog " + dto.catalogId() + " not found"));
+    }
+
+    /** Writes a new asset's file as original.{ext}; removed again if the transaction rolls back. */
+    private void storeOriginal(Asset asset, UploadedMedia media) {
+        UUID workspaceId = asset.getCatalog().getWorkspace().getId();
+        String directory = AssetStorageService.assetDirectory(asset.getCatalog().getId(), asset.getId());
+        String path = directory + "/original." + media.type().extension();
+        TransactionCallbacks.afterRollback(() -> storage.deleteDirectory(workspaceId, directory));
+        long size = storage.store(workspaceId, path, media.content());
+        setFile(asset, media, path, size);
     }
 
     /**

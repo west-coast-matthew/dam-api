@@ -6,6 +6,8 @@ import com.twofourseven.dam.exceptions.GlobalExceptionHandler;
 import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetInstanceDto;
 import com.twofourseven.dam.vo.AssetVersionVO;
+import com.twofourseven.dam.vo.BulkUploadResultVO;
+import com.twofourseven.dam.vo.SkippedFileVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -86,6 +88,32 @@ class AssetControllerTest {
         assertThat(dtoCaptor.getValue().catalogId()).isEqualTo(catalogId);
         assertThat(dtoCaptor.getValue().versioningEnabled()).isTrue();
         assertThat(fileCaptor.getValue().getOriginalFilename()).isEqualTo("sunset.jpg");
+    }
+
+    @Test
+    void bulkUploadReturns201WithCreatedAndSkipped() throws Exception {
+        when(service.createBulk(any(), any())).thenReturn(new BulkUploadResultVO(
+                List.of(dto(1)), List.of(new SkippedFileVO("notes.txt", "Unsupported file type '.txt'"))));
+        MockMultipartFile zip = new MockMultipartFile("file", "batch.zip", "application/zip", new byte[]{1});
+        MockMultipartFile asset = new MockMultipartFile("asset", "", MediaType.APPLICATION_JSON_VALUE,
+                ("{\"catalogId\":\"" + catalogId + "\"}").getBytes());
+
+        mockMvc.perform(multipart("/assets/bulk").file(zip).file(asset))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.created[0].originalFilename").value("sunset.jpg"))
+                .andExpect(jsonPath("$.skipped[0].path").value("notes.txt"));
+
+        ArgumentCaptor<AssetInstanceDto> captor = ArgumentCaptor.forClass(AssetInstanceDto.class);
+        verify(service).createBulk(captor.capture(), any());
+        assertThat(captor.getValue().catalogId()).isEqualTo(catalogId);
+    }
+
+    @Test
+    void bulkUploadWithoutZipIs400() throws Exception {
+        MockMultipartFile asset = new MockMultipartFile("asset", "", MediaType.APPLICATION_JSON_VALUE,
+                ("{\"catalogId\":\"" + catalogId + "\"}").getBytes());
+
+        mockMvc.perform(multipart("/assets/bulk").file(asset)).andExpect(status().isBadRequest());
     }
 
     @Test

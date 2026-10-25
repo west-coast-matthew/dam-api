@@ -21,7 +21,8 @@ import java.util.TreeMap;
 /**
  * Adds the responses springdoc can't see, following the project's conventions (CLAUDE.md):
  * <ul>
- *   <li>POST to a collection creates: 201 with a Location header.</li>
+ *   <li>POST to a collection creates: 201, with a Location header for a single resource
+ *       ({@code /workspaces}) but not for actions like {@code /assets/bulk}.</li>
  *   <li>DELETE returns 204 with no body.</li>
  *   <li>Errors come from GlobalExceptionHandler as {@link ErrorResponseVO}: 400 for bad input,
  *       404 for an unknown {id}, 409 for conflicts on writes, 413 for oversized uploads,
@@ -59,8 +60,11 @@ class ConventionalResponses implements OpenApiCustomizer {
 
         if (method == PathItem.HttpMethod.POST && !hasId) {
             ApiResponse ok = responses.remove("200");
-            ApiResponse created = (ok != null ? ok : new ApiResponse()).description("Created")
-                    .addHeaderObject("Location", new Header().description("URL of the new resource").schema(new StringSchema()));
+            ApiResponse created = (ok != null ? ok : new ApiResponse()).description("Created");
+            // POST /workspaces creates one resource; actions like POST /assets/bulk create several
+            if (path.chars().filter(c -> c == '/').count() == 1) {
+                created.addHeaderObject("Location", new Header().description("URL of the new resource").schema(new StringSchema()));
+            }
             responses.addApiResponse("201", created);
         }
         if (method == PathItem.HttpMethod.DELETE) {

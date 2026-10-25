@@ -25,7 +25,7 @@ class FileSystemAssetStorageServiceTest {
 
     @BeforeEach
     void setUp() {
-        storage = new FileSystemAssetStorageService(new StorageProperties(root.toString(), DataSize.ofGigabytes(1)));
+        storage = new FileSystemAssetStorageService(new StorageProperties(root.toString(), DataSize.ofGigabytes(1), 1000));
     }
 
     @Test

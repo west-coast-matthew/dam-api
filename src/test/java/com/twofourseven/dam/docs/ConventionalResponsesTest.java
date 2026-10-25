@@ -36,6 +36,16 @@ class ConventionalResponsesTest {
     }
 
     @Test
+    void bulkCreateIs201WithoutLocation() {
+        Operation post = op().requestBody(new RequestBody());
+
+        ConventionalResponses.apply("/assets/bulk", PathItem.HttpMethod.POST, post);
+
+        assertThat(post.getResponses()).containsKey("201");
+        assertThat(post.getResponses().get("201").getHeaders()).isNull();
+    }
+
+    @Test
     void deleteIs204() {
         Operation delete = op();
 

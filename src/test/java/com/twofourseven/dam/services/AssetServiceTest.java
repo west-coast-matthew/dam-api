@@ -19,6 +19,8 @@ import com.twofourseven.dam.repositories.LightboxItemRepository;
 import com.twofourseven.dam.repositories.TagRepository;
 import com.twofourseven.dam.repositories.UserAssetInteractionRepository;
 import com.twofourseven.dam.vo.AssetInstanceDto;
+import com.twofourseven.dam.vo.BulkUploadResultVO;
+import com.twofourseven.dam.vo.SkippedFileVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +43,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -77,7 +80,7 @@ class AssetServiceTest {
 
     @BeforeEach
     void setUp() {
-        UploadedMediaReader reader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofMegabytes(1)));
+        UploadedMediaReader reader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofMegabytes(1), 1000));
         service = new AssetService(assetRepository, assetVersionRepository, catalogRepository, categoryRepository,
                 tagRepository, lightboxItemRepository, interactionRepository, downloadLogRepository, storage, reader,
                 categoryService);
@@ -359,5 +362,76 @@ class AssetServiceTest {
         when(assetRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.versions(id)).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ---- bulk upload ----
+
+    private static MockMultipartFile zip(String... namesAndContents) {
+        return new MockMultipartFile("file", "batch.zip", "application/zip", ZipFixtures.zip(namesAndContents));
+    }
+
+    @Test
+    void bulkCreatesOneAssetPerMediaFileInDefaultCategory() {
+        when(catalogRepository.findById(catalog.getId())).thenReturn(Optional.of(catalog));
+
+        BulkUploadResultVO result = service.createBulk(
+                AssetInstanceDto.request(catalog.getId(), true, Map.of("shoot", "Spring"), null, null),
+                zip("a.jpg", "A", "clips/b.mp4", "BB", "notes.txt", "x"));
+
+        assertThat(result.created()).extracting(AssetInstanceDto::originalFilename).containsExactly("a.jpg", "b.mp4");
+        assertThat(result.created()).extracting(AssetInstanceDto::mediaType).containsExactly(MediaType.IMAGE, MediaType.VIDEO);
+        assertThat(result.created()).extracting(AssetInstanceDto::fileSize).containsExactly(1L, 2L);
+        assertThat(result.created()).allSatisfy(a -> {
+            assertThat(a.categoryIds()).containsExactly(defaultCategory.getId());
+            assertThat(a.versioningEnabled()).isTrue();
+            assertThat(a.customMetadata()).containsEntry("shoot", "Spring");
+            assertThat(a.status()).isEqualTo(AssetStatus.PENDING_PROCESSING);
+        });
+        assertThat(result.created()).extracting(AssetInstanceDto::id).doesNotHaveDuplicates();
+        assertThat(result.skipped()).extracting(SkippedFileVO::path).containsExactly("notes.txt");
+        assertThat(stored).hasSize(2);
+        assertThat(stored.get(0)).endsWith("/original.jpg=A");
+        assertThat(stored.get(1)).endsWith("/original.mp4=BB");
+        verify(assetRepository, times(2)).save(any(Asset.class));
+    }
+
+    @Test
+    void bulkUsesGivenCategoriesAndResolvesTagsOnce() {
+        Category animals = Fixtures.category(catalog, null, "Animals");
+        when(catalogRepository.findById(catalog.getId())).thenReturn(Optional.of(catalog));
+        when(categoryRepository.findAllById(any())).thenReturn(List.of(animals));
+        when(tagRepository.findFirstByCatalogIdAndNameIgnoreCase(catalog.getId(), "Zoo")).thenReturn(Optional.empty());
+        when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        BulkUploadResultVO result = service.createBulk(AssetInstanceDto.request(catalog.getId(), null, null,
+                List.of(animals.getId()), List.of("Zoo")), zip("a.png", "1", "b.png", "2", "c.png", "3"));
+
+        assertThat(result.created()).hasSize(3).allSatisfy(a -> {
+            assertThat(a.categoryIds()).containsExactly(animals.getId());
+            assertThat(a.tags()).containsExactly("Zoo");
+        });
+        verify(tagRepository, times(1)).save(any(Tag.class));
+        verify(categoryService, never()).defaultCategoryOf(any());
+    }
+
+    @Test
+    void bulkInUnknownCatalogIsNotFound() {
+        UUID id = UUID.randomUUID();
+        when(catalogRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createBulk(AssetInstanceDto.request(id, null, null, null, null), zip("a.png", "1")))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(stored).isEmpty();
+    }
+
+    @Test
+    void bulkWithoutMediaStoresNothing() {
+        when(catalogRepository.findById(catalog.getId())).thenReturn(Optional.of(catalog));
+
+        assertThatThrownBy(() -> service.createBulk(AssetInstanceDto.request(catalog.getId(), null, null, null, null),
+                zip("readme.txt", "x")))
+                .isInstanceOf(BadRequestException.class);
+        assertThat(stored).isEmpty();
+        verify(assetRepository, never()).save(any());
     }
 }

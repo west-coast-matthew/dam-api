@@ -64,6 +64,10 @@ catalog or category that still has children is a 409. Top-level category names a
 Assets:
 - `POST /assets` is multipart: `file` plus `asset` (JSON `AssetInstanceDto`). `PUT /assets/{id}` is a
   JSON metadata update (null = unchanged); `PUT /assets/{id}/file` replaces the file.
+- `POST /assets/bulk` (spec 010): multipart `file` (zip) + `asset` (JSON applied to every file). Each
+  supported file in the zip, in any folder, becomes an asset; unsupported files are skipped and listed
+  in `BulkUploadResultVO`. No categories given = catalog default. One transaction for the whole zip.
+  Reading is `UploadedMediaReader.readEach`; capped by `dam.storage.max-bulk-files`.
 - Media type comes from the extension (`MediaTypeResolver`): images, video, PDF. Audio is rejected.
   A `.zip` must hold exactly one supported media file (`UploadedMediaReader`).
 - Files are written through `AssetStorageService` (`FileSystemAssetStorageService`) using the layout
@@ -88,7 +92,8 @@ checks the database connection. New dependency checks go in `HeartbeatService.ch
   `--spring.config.additional-location`. Template: `config/application.properties.sample`.
 - Never commit real credentials. `config/application.properties` is gitignored.
 - Asset files live under `dam.storage.root-dir` (`StorageProperties`); directories are created on
-  first write. Upload limits: `spring.servlet.multipart.*` and `dam.storage.max-extracted-size` (zip contents).
+  first write. Upload limits: `spring.servlet.multipart.*`, `dam.storage.max-extracted-size` (per file inside a
+  zip) and `dam.storage.max-bulk-files`.
 - Logging: console only (`logback-spring.xml`); `com.twofourseven.dam` at DEBUG. Use SLF4J loggers.
 
 ## Testing
