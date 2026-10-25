@@ -8,4 +8,6 @@ import java.util.UUID;
 
 @Repository
 public interface AssetDownloadLogRepository extends JpaRepository<AssetDownloadLog, UUID> {
+
+    void deleteByAssetId(UUID assetId);
 }

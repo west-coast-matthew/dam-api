@@ -69,6 +69,10 @@ public class Asset {
     @Column(name = "status", nullable = false)
     private AssetStatus status = AssetStatus.PENDING_PROCESSING;
 
+    /** When true, replacing the file keeps the previous file as an {@link AssetVersion}. */
+    @Column(name = "versioning_enabled", nullable = false)
+    private Boolean versioningEnabled = false;
+
     // MariaDB JSON column (the original PostgreSQL "jsonb" definition is not valid on MariaDB)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "custom_metadata")

@@ -5,6 +5,10 @@ import com.twofourseven.dam.entities.core.UserAssetInteractionId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.UUID;
+
 @Repository
 public interface UserAssetInteractionRepository extends JpaRepository<UserAssetInteraction, UserAssetInteractionId> {
+
+    void deleteByAssetId(UUID assetId);
 }

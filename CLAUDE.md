@@ -45,6 +45,22 @@ Other packages:
 - `WorkspaceInitializationService` creates the first workspace + catalog
   (`initializeDefaultWorkspace()` or `setupWorkspace(...)`).
 - The schema is not generated (`spring.jpa.hibernate.ddl-auto=none`); tables must exist in MariaDB.
+  Schema changes go in `db/NNN-description.sql` (numbered after the spec) and are applied by hand.
+
+REST endpoints (spec 004): `/workspaces`, `/catalogs`, `/categories`, `/lightboxes`, `/assets`, using
+the `*InstanceDto` records in `vo`. Create = 201 with Location, delete = 204. Deleting a workspace,
+catalog or category that still has children is a 409. Top-level category names are unique per catalog.
+
+Assets:
+- `POST /assets` is multipart: `file` plus `asset` (JSON `AssetInstanceDto`). `PUT /assets/{id}` is a
+  JSON metadata update (null = unchanged); `PUT /assets/{id}/file` replaces the file.
+- Media type comes from the extension (`MediaTypeResolver`): images, video, PDF. Audio is rejected.
+  A `.zip` must hold exactly one supported media file (`UploadedMediaReader`).
+- Files are written through `AssetStorageService` (`FileSystemAssetStorageService`) using the layout
+  in `STORAGE_SPECIFICATION.md`; the database stores paths relative to the workspace folder.
+- When `Asset.versioningEnabled` is true, replacing the file keeps the old one as an `AssetVersion`
+  (`version_N.ext`); otherwise it is overwritten. File clean-up is tied to the transaction outcome
+  via `TransactionCallbacks`.
 
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
@@ -61,6 +77,8 @@ checks the database connection. New dependency checks go in `HeartbeatService.ch
 - Credentials come from `/etc/app-config/dam/application.properties`, layered on top through
   `--spring.config.additional-location`. Template: `config/application.properties.sample`.
 - Never commit real credentials. `config/application.properties` is gitignored.
+- Asset files live under `dam.storage.root-dir` (`StorageProperties`); directories are created on
+  first write. Upload limits: `spring.servlet.multipart.*` and `dam.storage.max-extracted-size` (zip contents).
 - Logging: console only (`logback-spring.xml`); `com.twofourseven.dam` at DEBUG. Use SLF4J loggers.
 
 ## Testing

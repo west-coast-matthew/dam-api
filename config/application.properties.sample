@@ -15,6 +15,10 @@ dam.db.name=dam
 dam.db.username=dam_user
 dam.db.password=change_me
 
+# ---- Asset storage ----
+# Folder that holds uploaded asset files (must be writable by the app)
+dam.storage.root-dir=/var/data/dam
+
 # ---- Optional overrides ----
 #server.port=8080
 #logging.level.com.twofourseven.dam=DEBUG

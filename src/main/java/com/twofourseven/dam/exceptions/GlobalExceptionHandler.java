@@ -10,6 +10,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
@@ -57,6 +59,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             HttpMessageNotReadableException.class,
             MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class,
             MethodArgumentTypeMismatchException.class
     })
     public ResponseEntity<ErrorResponseVO> handleMalformedRequest(Exception ex, HttpServletRequest req) {
@@ -100,8 +103,9 @@ public class GlobalExceptionHandler {
 
     // ---- 503 / 500 ----
 
-    @ExceptionHandler(DataAccessException.class)
-    public ResponseEntity<ErrorResponseVO> handleDataAccess(DataAccessException ex, HttpServletRequest req) {
+    // CannotCreateTransactionException: the database was unreachable when a transaction began
+    @ExceptionHandler({DataAccessException.class, CannotCreateTransactionException.class})
+    public ResponseEntity<ErrorResponseVO> handleDataAccess(RuntimeException ex, HttpServletRequest req) {
         log.error("Database error on {} {}", req.getMethod(), req.getRequestURI(), ex);
         return build(HttpStatus.SERVICE_UNAVAILABLE, "Database is unavailable", req);
     }
