@@ -4,15 +4,4 @@
 
 ## Goal
 
-<!-- What should be true when this spec is done? -->
-
-## Requirements
-
--
-
-## Acceptance criteria
-
--
-
-## Notes
-
+We need to create a new service interface and implementation for storing assets. A long term goal is to store 
