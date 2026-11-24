@@ -4,7 +4,6 @@ import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetInstanceDto;
 import com.twofourseven.dam.vo.AssetVersionVO;
 import com.twofourseven.dam.vo.BulkUploadResultVO;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,9 +26,12 @@ import java.util.UUID;
  * Asset management.
  * <ul>
  *   <li>{@code POST /assets} — multipart: {@code file} (media file or a zip holding one) and
- *       {@code asset} (JSON {@link AssetInstanceDto}, at least {@code catalogId}).</li>
+ *       {@code asset} (JSON {@link AssetInstanceDto}, at least {@code catalogId}). 202 Accepted with a
+ *       Location header: the asset and its file are saved, and its thumbnail is made in the background
+ *       (status PENDING_PROCESSING until then).</li>
  *   <li>{@code POST /assets/bulk} — multipart: {@code file} (a zip of media files) and {@code asset}
- *       (JSON applied to every file, at least {@code catalogId}). One asset per supported file.</li>
+ *       (JSON applied to every file, at least {@code catalogId}). One asset per supported file. 202
+ *       Accepted, with thumbnails made in the background as for a single upload.</li>
  *   <li>{@code PUT /assets/{id}} — JSON metadata update; null fields are unchanged.</li>
  *   <li>{@code PUT /assets/{id}/file} — multipart {@code file}; replaces the file, keeping the old
  *       one as a version when the asset's versioning is enabled.</li>
@@ -64,13 +66,13 @@ public class AssetController {
     public ResponseEntity<AssetInstanceDto> create(@RequestPart("asset") AssetInstanceDto asset,
                                                    @RequestPart("file") MultipartFile file) {
         AssetInstanceDto created = service.create(asset, file);
-        return ResponseEntity.created(URI.create("/assets/" + created.id())).body(created);
+        return ResponseEntity.accepted().location(URI.create("/assets/" + created.id())).body(created);
     }
 
     @PostMapping(path = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<BulkUploadResultVO> createBulk(@RequestPart("asset") AssetInstanceDto asset,
                                                          @RequestPart("file") MultipartFile file) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.createBulk(asset, file));
+        return ResponseEntity.accepted().body(service.createBulk(asset, file));
     }
 
     @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)

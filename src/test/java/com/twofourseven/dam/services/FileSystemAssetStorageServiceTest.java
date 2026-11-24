@@ -53,6 +53,29 @@ class FileSystemAssetStorageServiceTest {
     }
 
     @Test
+    void openReadsAStoredFile() throws Exception {
+        String path = "catalogs/c/assets/aa/bb/cc/a/original.png";
+        storage.store(workspaceId, path, new ByteArrayInputStream("hello".getBytes()));
+
+        try (var in = storage.open(workspaceId, path)) {
+            assertThat(new String(in.readAllBytes())).isEqualTo("hello");
+        }
+        assertThatThrownBy(() -> storage.open(workspaceId, "catalogs/c/missing.png"))
+                .isInstanceOf(java.io.UncheckedIOException.class);
+        assertThatThrownBy(() -> storage.open(workspaceId, "../other/secret.png"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void thumbnailSitsInTheAssetDirectory() {
+        UUID catalogId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+
+        assertThat(AssetStorageService.thumbnailPath(catalogId, assetId))
+                .isEqualTo(AssetStorageService.assetDirectory(catalogId, assetId) + "/thumbnail.jpg");
+    }
+
+    @Test
     void deleteAndDeleteDirectory() throws Exception {
         storage.store(workspaceId, "catalogs/c/assets/x/a/original.png", new ByteArrayInputStream("1".getBytes()));
         storage.store(workspaceId, "catalogs/c/assets/x/a/version_2.png", new ByteArrayInputStream("2".getBytes()));

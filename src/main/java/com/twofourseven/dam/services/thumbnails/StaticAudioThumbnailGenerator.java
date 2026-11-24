@@ -8,11 +8,11 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 
-/** Every audio file gets the same bundled image ({@code thumbnails/audio.png}); options are ignored. */
+/** Every audio file gets the same bundled image ({@code thumbnails/audio.jpg}); options are ignored. */
 @Component
 public class StaticAudioThumbnailGenerator implements ThumbnailGenerator {
 
-    static final String RESOURCE = "/thumbnails/audio.png";
+    static final String RESOURCE = "/thumbnails/audio.jpg";
 
     private final byte[] image;
 
@@ -34,6 +34,6 @@ public class StaticAudioThumbnailGenerator implements ThumbnailGenerator {
 
     @Override
     public Thumbnail generate(Path source, String extension, ThumbnailOptions options) {
-        return Thumbnail.png(image.clone());
+        return Thumbnail.jpeg(image.clone());
     }
 }

@@ -34,7 +34,7 @@ class FfmpegVideoThumbnailGeneratorTest {
         return List.of("ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
                 "-ss", seconds, "-i", "/tmp/clip.mp4", "-frames:v", "1",
                 "-vf", "scale='min(200,iw)':'min(100,ih)':force_original_aspect_ratio=decrease",
-                "-f", "image2pipe", "-c:v", "png", "pipe:1");
+                "-f", "image2pipe", "-c:v", "mjpeg", "-q:v", "3", "pipe:1");
     }
 
     @ParameterizedTest
@@ -58,7 +58,7 @@ class FfmpegVideoThumbnailGeneratorTest {
         Thumbnail thumbnail = new FfmpegVideoThumbnailGenerator(runner, PROPERTIES).generate(SOURCE, "mp4", OPTIONS);
 
         assertThat(thumbnail.data()).containsExactly(4);
-        assertThat(thumbnail.mimeType()).isEqualTo("image/png");
+        assertThat(thumbnail.mimeType()).isEqualTo("image/jpeg");
     }
 
     @Test

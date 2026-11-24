@@ -20,6 +20,7 @@ import java.time.Duration;
  * @param commandTimeout   longest a thumbnail command may run before it is stopped
  * @param magickCommand    ImageMagick executable ({@code magick}, or {@code convert} for ImageMagick 6)
  * @param ffmpegCommand    ffmpeg executable
+ * @param threads          how many thumbnails are generated at the same time after uploads
  */
 @Validated
 @ConfigurationProperties(prefix = "dam.thumbnails")
@@ -30,5 +31,6 @@ public record ThumbnailProperties(
         @DefaultValue("150") @Min(1) int pdfDensity,
         @DefaultValue("60s") @NotNull Duration commandTimeout,
         @DefaultValue("magick") @NotBlank String magickCommand,
-        @DefaultValue("ffmpeg") @NotBlank String ffmpegCommand) {
+        @DefaultValue("ffmpeg") @NotBlank String ffmpegCommand,
+        @DefaultValue("4") @Min(1) int threads) {
 }

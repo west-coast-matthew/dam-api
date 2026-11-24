@@ -70,13 +70,13 @@ class AssetControllerTest {
     }
 
     @Test
-    void uploadCreatesAsset() throws Exception {
+    void uploadIsAcceptedWithLocation() throws Exception {
         when(service.create(any(), any())).thenReturn(dto(1));
         MockMultipartFile asset = new MockMultipartFile("asset", "", MediaType.APPLICATION_JSON_VALUE,
                 ("{\"catalogId\":\"" + catalogId + "\",\"versioningEnabled\":true,\"tags\":[\"Nature\"]}").getBytes());
 
         mockMvc.perform(multipart("/assets").file(file()).file(asset))
-                .andExpect(status().isCreated())
+                .andExpect(status().isAccepted())
                 .andExpect(header().string("Location", "/assets/" + id))
                 .andExpect(jsonPath("$.mediaType").value("IMAGE"))
                 .andExpect(jsonPath("$.currentVersion").value(1))
@@ -91,7 +91,7 @@ class AssetControllerTest {
     }
 
     @Test
-    void bulkUploadReturns201WithCreatedAndSkipped() throws Exception {
+    void bulkUploadReturns202WithCreatedAndSkipped() throws Exception {
         when(service.createBulk(any(), any())).thenReturn(new BulkUploadResultVO(
                 List.of(dto(1)), List.of(new SkippedFileVO("notes.txt", "Unsupported file type '.txt'"))));
         MockMultipartFile zip = new MockMultipartFile("file", "batch.zip", "application/zip", new byte[]{1});
@@ -99,7 +99,7 @@ class AssetControllerTest {
                 ("{\"catalogId\":\"" + catalogId + "\"}").getBytes());
 
         mockMvc.perform(multipart("/assets/bulk").file(zip).file(asset))
-                .andExpect(status().isCreated())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.created[0].originalFilename").value("sunset.jpg"))
                 .andExpect(jsonPath("$.skipped[0].path").value("notes.txt"));
 

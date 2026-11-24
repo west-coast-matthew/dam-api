@@ -20,7 +20,7 @@ public interface ThumbnailGenerator {
     boolean supports(MediaType mediaType, String extension);
 
     /**
-     * Makes a thumbnail of {@code source}, a temporary file that is deleted after this call returns.
+     * Makes a JPEG thumbnail of {@code source}, a temporary file that is deleted after this call returns.
      *
      * @param extension lower case file extension of {@code source}, without the dot
      * @throws ThumbnailGenerationException if the thumbnail can't be made

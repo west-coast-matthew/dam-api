@@ -23,6 +23,13 @@ public interface AssetStorageService {
      */
     long store(UUID workspaceId, String relativePath, InputStream content);
 
+    /**
+     * Opens a stored file for reading; the caller closes the stream.
+     *
+     * @throws java.io.UncheckedIOException if the file is missing or can't be read
+     */
+    InputStream open(UUID workspaceId, String relativePath);
+
     /** Deletes one file if it exists. Failures are logged, not thrown. */
     void delete(UUID workspaceId, String relativePath);
 
@@ -34,5 +41,10 @@ public interface AssetStorageService {
         String hex = assetId.toString().replace("-", "");
         return "catalogs/" + catalogId + "/assets/"
                 + hex.substring(0, 2) + "/" + hex.substring(2, 4) + "/" + hex.substring(4, 6) + "/" + assetId;
+    }
+
+    /** An asset's thumbnail: {@code {assetDirectory}/thumbnail.jpg}. */
+    static String thumbnailPath(UUID catalogId, UUID assetId) {
+        return assetDirectory(catalogId, assetId) + "/thumbnail.jpg";
     }
 }

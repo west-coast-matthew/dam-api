@@ -13,7 +13,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Takes one frame of a video with ffmpeg at {@link ThumbnailOptions#videoOffset()} and scales it to
+ * Takes one frame of a video as a JPEG with ffmpeg at {@link ThumbnailOptions#videoOffset()} and scales it to
  * fit the thumbnail box (aspect ratio kept, never enlarged). ffmpeg writes nothing when the offset is
  * past the end of the video, so it then tries again with the first frame.
  */
@@ -44,7 +44,7 @@ public class FfmpegVideoThumbnailGenerator implements ThumbnailGenerator {
             log.debug("{} is shorter than {}; using its first frame", source.getFileName(), options.videoOffset());
             frame = frameAt(source, Duration.ZERO, options);
         }
-        return ImageMagickImageThumbnailGenerator.png(frame, source);
+        return ImageMagickImageThumbnailGenerator.jpeg(frame, source);
     }
 
     private byte[] frameAt(Path source, Duration offset, ThumbnailOptions options) {
@@ -55,7 +55,7 @@ public class FfmpegVideoThumbnailGenerator implements ThumbnailGenerator {
                 "-i", source.toString(),
                 "-frames:v", "1",
                 "-vf", scaleFilter(options),
-                "-f", "image2pipe", "-c:v", "png",
+                "-f", "image2pipe", "-c:v", "mjpeg", "-q:v", "3",
                 "pipe:1");
         return runner.run(command, properties.commandTimeout());
     }

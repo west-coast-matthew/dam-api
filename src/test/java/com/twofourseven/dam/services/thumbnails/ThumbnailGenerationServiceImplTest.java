@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 class ThumbnailGenerationServiceImplTest {
 
     static final ThumbnailProperties PROPERTIES = new ThumbnailProperties(
-            200, 100, Duration.ofSeconds(2), 150, Duration.ofSeconds(60), "magick", "ffmpeg");
+            200, 100, Duration.ofSeconds(2), 150, Duration.ofSeconds(60), "magick", "ffmpeg", 2);
 
     @Mock
     private ThumbnailGenerator first;
@@ -50,7 +50,7 @@ class ThumbnailGenerationServiceImplTest {
         when(first.supports(MediaType.IMAGE, "png")).thenReturn(false);
         when(second.supports(MediaType.IMAGE, "png")).thenReturn(true);
         AtomicReference<Path> seen = new AtomicReference<>();
-        Thumbnail expected = Thumbnail.png(new byte[]{9});
+        Thumbnail expected = Thumbnail.jpeg(new byte[]{9});
         when(second.generate(any(), eq("png"), any())).thenAnswer(inv -> {
             Path source = inv.getArgument(0);
             seen.set(source);
@@ -70,7 +70,7 @@ class ThumbnailGenerationServiceImplTest {
     void usesTheConfiguredDefaultOptions() {
         when(first.supports(MediaType.VIDEO, "mp4")).thenReturn(true);
         when(first.generate(any(), eq("mp4"), eq(new ThumbnailOptions(200, 100, Duration.ofSeconds(2)))))
-                .thenReturn(Thumbnail.png(new byte[]{1}));
+                .thenReturn(Thumbnail.jpeg(new byte[]{1}));
 
         service.generate(new ByteArrayInputStream(new byte[]{5}), "clip.mp4");
 
@@ -81,7 +81,7 @@ class ThumbnailGenerationServiceImplTest {
     void passesCustomOptionsThrough() {
         ThumbnailOptions options = service.defaultOptions().withVideoOffset(Duration.ofMillis(1500));
         when(first.supports(MediaType.VIDEO, "mov")).thenReturn(true);
-        when(first.generate(any(), eq("mov"), eq(options))).thenReturn(Thumbnail.png(new byte[]{1}));
+        when(first.generate(any(), eq("mov"), eq(options))).thenReturn(Thumbnail.jpeg(new byte[]{1}));
 
         assertThat(service.generate(new byte[]{5}, "clip.mov", options).data()).containsExactly(1);
     }

@@ -71,7 +71,7 @@ sibling names are unique case-insensitively at every level, and cycles are a 400
 editor uses this endpoint.
 
 REST endpoints (spec 004): `/workspaces`, `/catalogs`, `/categories`, `/lightboxes`, `/assets`, using
-the `*InstanceDto` records in `vo`. Create = 201 with Location, delete = 204. Deleting a workspace,
+the `*InstanceDto` records in `vo`. Create = 201 with Location (asset uploads: 202, see below), delete = 204. Deleting a workspace,
 catalog or category that still has children is a 409. Top-level category names are unique per catalog.
 
 Assets:
@@ -91,13 +91,22 @@ Assets:
 
 Thumbnails (spec 001), package `services.thumbnails`: `ThumbnailGenerationService` (impl
 `ThumbnailGenerationServiceImpl`) takes bytes or a stream plus a file name and returns a `Thumbnail`
-(PNG bytes); it doesn't store anything. The work is done by pluggable `ThumbnailGenerator` beans; the
+(JPEG bytes); it doesn't store anything. The work is done by pluggable `ThumbnailGenerator` beans; the
 first supporting one in `@Order` order wins, so a deployment overrides a built-in with a higher-precedence
 bean. Built-ins: `ImageMagickImageThumbnailGenerator` (jpg/jpeg/gif/png/svg/bmp/psd),
 `ImageMagickPdfThumbnailGenerator` (first page; needs Ghostscript), `FfmpegVideoThumbnailGenerator`
 (avi/mkv/mp4/mov, frame at `dam.thumbnails.video-frame-offset`, first frame if the video is shorter) and
-`StaticAudioThumbnailGenerator` (`resources/thumbnails/audio.png`). Tools run through `CommandRunner`
+`StaticAudioThumbnailGenerator` (`resources/thumbnails/audio.jpg`). Tools run through `CommandRunner`
 (no shell, timeout), which tests mock. Settings: `ThumbnailProperties` (`dam.thumbnails.*`).
+
+Thumbnail processing (spec 019): `POST /assets` (202 + Location) and `POST /assets/bulk` (202) return once the
+assets are saved as `PENDING_PROCESSING`; `PUT /assets/{id}/file` also re-queues. `AssetService` calls
+`AssetThumbnailService.generateAfterCommit(ids)`, which queues the ids after commit on its own pool of
+`dam.thumbnails.threads` workers (owned by the service, not an `Executor` bean, so Boot's default task executor
+stays). A worker reads the original via `AssetStorageService.open`, stores `thumbnail.jpg`
+(`AssetStorageService.thumbnailPath`) and sets READY/FAILED with `AssetRepository.updateStatusIfFileUnchanged`
+(skipped if the file was replaced meanwhile). Types without thumbnail support go to READY. The queue is in
+memory: assets left PENDING_PROCESSING by a restart are not retried.
 
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
