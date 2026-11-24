@@ -1,6 +1,6 @@
-status: completed
+# init logic
 
-# 002 — init logic
+**Status:** completed
 
 ## Summary
 

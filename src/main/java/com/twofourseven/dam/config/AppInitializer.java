@@ -10,7 +10,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Startup hook (spec 002): once the application is ready, stages the initial data if no workspace
+ * Startup hook (spec 018): once the application is ready, stages the initial data if no workspace
  * exists. Failures are logged, never thrown, so the app still starts when the database is down
  * (the next startup tries again). Turn off with {@code dam.init.enabled=false}.
  */

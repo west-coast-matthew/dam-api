@@ -1,6 +1,6 @@
-status: ready
+# initialization of default setup
 
-# 001 — initialization of default setup
+**Status:** ready
 
 ## Summary
 

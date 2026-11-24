@@ -3,7 +3,7 @@ package com.twofourseven.dam.services;
 import com.twofourseven.dam.vo.WorkspaceVO;
 
 /**
- * Stages the initial data for a brand-new installation (spec 002): a workspace, its catalog and
+ * Stages the initial data for a brand-new installation (spec 018): a workspace, its catalog and
  * that catalog's default category. Run at startup by {@code config.AppInitializer} when no
  * workspace exists yet.
  */
