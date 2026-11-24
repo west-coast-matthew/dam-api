@@ -36,13 +36,23 @@ class ConventionalResponsesTest {
     }
 
     @Test
-    void bulkCreateIs201WithoutLocation() {
+    void bulkUploadIs202WithoutLocation() {
         Operation post = op().requestBody(new RequestBody());
 
         ConventionalResponses.apply("/assets/bulk", PathItem.HttpMethod.POST, post);
 
-        assertThat(post.getResponses()).containsKey("201");
-        assertThat(post.getResponses().get("201").getHeaders()).isNull();
+        assertThat(post.getResponses()).containsKey("202").doesNotContainKey("201");
+        assertThat(post.getResponses().get("202").getHeaders()).isNull();
+    }
+
+    @Test
+    void assetUploadIs202WithLocation() {
+        Operation post = op().requestBody(new RequestBody());
+
+        ConventionalResponses.apply("/assets", PathItem.HttpMethod.POST, post);
+
+        assertThat(post.getResponses()).containsKey("202").doesNotContainKey("201");
+        assertThat(post.getResponses().get("202").getHeaders()).containsKey("Location");
     }
 
     @Test

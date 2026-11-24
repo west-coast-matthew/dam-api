@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * Renders the first page of a PDF with ImageMagick (which uses Ghostscript for PDFs):
- * {@code magick -density 150 PDF:in.pdf[0] -background white -alpha remove -alpha off -thumbnail 320x320> -strip PNG:-}.
+ * {@code magick -density 150 PDF:in.pdf[0] -thumbnail 320x320> -background white -alpha remove -alpha off -strip -quality 85 JPEG:-}.
  * Transparent pages get a white background.
  */
 @Component
@@ -34,12 +34,8 @@ public class ImageMagickPdfThumbnailGenerator implements ThumbnailGenerator {
                 properties.magickCommand(),
                 "-density", String.valueOf(properties.pdfDensity()),
                 "PDF:" + source + "[0]",
-                "-background", "white",
-                "-alpha", "remove",
-                "-alpha", "off",
-                "-thumbnail", ImageMagickImageThumbnailGenerator.fitWithin(options),
-                "-strip",
-                "PNG:-");
-        return ImageMagickImageThumbnailGenerator.png(runner.run(command, properties.commandTimeout()), source);
+                "-thumbnail", ImageMagickImageThumbnailGenerator.fitWithin(options));
+        return ImageMagickImageThumbnailGenerator.jpeg(runner.run(
+                ImageMagickImageThumbnailGenerator.withJpegOutput(command), properties.commandTimeout()), source);
     }
 }

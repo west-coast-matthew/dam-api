@@ -19,10 +19,10 @@ class StaticAudioThumbnailGeneratorTest {
     }
 
     @Test
-    void returnsTheBundledPng() {
+    void returnsTheBundledJpeg() {
         Thumbnail thumbnail = generator.generate(Path.of("/tmp/song.mp3"), "mp3", new ThumbnailOptions(10, 10, Duration.ZERO));
 
-        assertThat(thumbnail.mimeType()).isEqualTo("image/png");
-        assertThat(thumbnail.data()).startsWith((byte) 0x89, (byte) 'P', (byte) 'N', (byte) 'G');
+        assertThat(thumbnail.mimeType()).isEqualTo("image/jpeg");
+        assertThat(thumbnail.data()).startsWith((byte) 0xFF, (byte) 0xD8, (byte) 0xFF);
     }
 }

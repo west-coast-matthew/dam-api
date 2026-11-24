@@ -58,6 +58,15 @@ public class FileSystemAssetStorageService implements AssetStorageService {
     }
 
     @Override
+    public InputStream open(UUID workspaceId, String relativePath) {
+        try {
+            return Files.newInputStream(resolve(workspaceId, relativePath));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read file " + relativePath, e);
+        }
+    }
+
+    @Override
     public void delete(UUID workspaceId, String relativePath) {
         deleteQuietly(resolve(workspaceId, relativePath));
     }

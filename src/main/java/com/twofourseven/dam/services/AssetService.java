@@ -49,6 +49,9 @@ import java.util.UUID;
  * <p>Versioning: when an asset's {@code versioningEnabled} flag is on, replacing its file keeps the
  * previous file on disk and records it as an {@link AssetVersion}; the asset keeps its id and points
  * at the new file. When the flag is off, the file is overwritten.
+ *
+ * <p>Thumbnails: new and replaced files are saved as PENDING_PROCESSING and their thumbnails are made
+ * in the background after the transaction commits ({@link AssetThumbnailService}).
  */
 @Service
 public class AssetService {
@@ -66,6 +69,7 @@ public class AssetService {
     private final AssetStorageService storage;
     private final UploadedMediaReader uploadReader;
     private final CategoryService categoryService;
+    private final AssetThumbnailService thumbnailService;
 
     public AssetService(AssetRepository assetRepository, AssetVersionRepository assetVersionRepository,
                         CatalogRepository catalogRepository, CategoryRepository categoryRepository,
@@ -73,7 +77,7 @@ public class AssetService {
                         UserAssetInteractionRepository interactionRepository,
                         AssetDownloadLogRepository downloadLogRepository,
                         AssetStorageService storage, UploadedMediaReader uploadReader,
-                        CategoryService categoryService) {
+                        CategoryService categoryService, AssetThumbnailService thumbnailService) {
         this.assetRepository = assetRepository;
         this.assetVersionRepository = assetVersionRepository;
         this.catalogRepository = catalogRepository;
@@ -85,6 +89,7 @@ public class AssetService {
         this.storage = storage;
         this.uploadReader = uploadReader;
         this.categoryService = categoryService;
+        this.thumbnailService = thumbnailService;
     }
 
     /** All assets, or only those in {@code catalogId} when it is not null. Newest first. */
@@ -128,6 +133,7 @@ public class AssetService {
 
         ensureCategory(asset);
         Asset saved = assetRepository.save(asset);
+        thumbnailService.generateAfterCommit(List.of(saved.getId()));
         log.info("Created {} asset '{}' ({}) in catalog {}", saved.getMediaType(), saved.getOriginalFilename(),
                 saved.getId(), catalog.getId());
         return toDto(saved);
@@ -161,6 +167,7 @@ public class AssetService {
             storeOriginal(asset, media);
             created.add(toDto(assetRepository.save(asset)));
         });
+        thumbnailService.generateAfterCommit(created.stream().map(AssetInstanceDto::id).toList());
         log.info("Bulk upload created {} assets in catalog {} ({} files skipped)", created.size(), catalog.getId(), skipped.size());
         return new BulkUploadResultVO(created, skipped);
     }
@@ -237,7 +244,9 @@ public class AssetService {
             throw new UncheckedIOException(e);
         }
         ensureCategory(asset);
-        return toDto(assetRepository.save(asset));
+        AssetInstanceDto saved = toDto(assetRepository.save(asset));
+        thumbnailService.generateAfterCommit(List.of(id));
+        return saved;
     }
 
     /**

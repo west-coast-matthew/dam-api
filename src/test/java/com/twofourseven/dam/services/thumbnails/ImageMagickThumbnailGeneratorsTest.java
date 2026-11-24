@@ -54,9 +54,11 @@ class ImageMagickThumbnailGeneratorsTest {
         Thumbnail thumbnail = new ImageMagickImageThumbnailGenerator(runner, PROPERTIES).generate(SOURCE, extension, OPTIONS);
 
         assertThat(thumbnail.data()).containsExactly(7);
-        assertThat(thumbnail.mimeType()).isEqualTo("image/png");
+        assertThat(thumbnail.mimeType()).isEqualTo("image/jpeg");
+        assertThat(thumbnail.extension()).isEqualTo("jpg");
         verify(runner).run(List.of("magick", coder + ":/tmp/dam-thumb-1.jpg[0]", "-auto-orient",
-                "-thumbnail", "200x100>", "-strip", "PNG:-"), Duration.ofSeconds(60));
+                "-thumbnail", "200x100>", "-background", "white", "-alpha", "remove", "-alpha", "off",
+                "-strip", "-quality", "85", "JPEG:-"), Duration.ofSeconds(60));
     }
 
     @Test
@@ -77,7 +79,9 @@ class ImageMagickThumbnailGeneratorsTest {
         assertThat(generator.supports(MediaType.DOCUMENT, "pdf")).isTrue();
         assertThat(generator.supports(MediaType.IMAGE, "png")).isFalse();
         assertThat(thumbnail.data()).containsExactly(3);
-        verify(runner).run(List.of("magick", "-density", "150", "PDF:/tmp/a.pdf[0]", "-background", "white",
-                "-alpha", "remove", "-alpha", "off", "-thumbnail", "200x100>", "-strip", "PNG:-"), Duration.ofSeconds(60));
+        assertThat(thumbnail.mimeType()).isEqualTo("image/jpeg");
+        verify(runner).run(List.of("magick", "-density", "150", "PDF:/tmp/a.pdf[0]", "-thumbnail", "200x100>",
+                "-background", "white", "-alpha", "remove", "-alpha", "off",
+                "-strip", "-quality", "85", "JPEG:-"), Duration.ofSeconds(60));
     }
 }

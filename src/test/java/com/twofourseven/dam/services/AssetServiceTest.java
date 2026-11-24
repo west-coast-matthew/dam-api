@@ -71,6 +71,8 @@ class AssetServiceTest {
     private AssetStorageService storage;
     @Mock
     private CategoryService categoryService;
+    @Mock
+    private AssetThumbnailService thumbnailService;
 
     private AssetService service;
     private final Catalog catalog = Fixtures.catalog("Photos");
@@ -83,7 +85,7 @@ class AssetServiceTest {
         UploadedMediaReader reader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofMegabytes(1), 1000));
         service = new AssetService(assetRepository, assetVersionRepository, catalogRepository, categoryRepository,
                 tagRepository, lightboxItemRepository, interactionRepository, downloadLogRepository, storage, reader,
-                categoryService);
+                categoryService, thumbnailService);
         lenient().when(categoryService.defaultCategoryOf(catalog)).thenReturn(defaultCategory);
         lenient().when(storage.store(any(), anyString(), any())).thenAnswer(inv -> {
             byte[] bytes = inv.<InputStream>getArgument(2).readAllBytes();
@@ -136,6 +138,7 @@ class AssetServiceTest {
         String expectedDir = AssetStorageService.assetDirectory(catalog.getId(), result.id());
         assertThat(stored).containsExactly(expectedDir + "/original.jpg=jpeg!");
         verify(storage).store(eq(catalog.getWorkspace().getId()), anyString(), any());
+        verify(thumbnailService).generateAfterCommit(List.of(result.id()));
     }
 
     @Test
@@ -220,6 +223,7 @@ class AssetServiceTest {
                 .isInstanceOf(BadRequestException.class);
         assertThat(stored).isEmpty();
         verify(assetRepository, never()).save(any());
+        verify(thumbnailService, never()).generateAfterCommit(any());
     }
 
     @Test
@@ -308,6 +312,8 @@ class AssetServiceTest {
         assertThat(asset.getVersions()).isEmpty();
         assertThat(stored).containsExactly(dir(asset) + "/original.png=new");
         verify(storage, never()).delete(any(), anyString());
+        assertThat(result.status()).isEqualTo(AssetStatus.PENDING_PROCESSING);
+        verify(thumbnailService).generateAfterCommit(List.of(asset.getId()));
     }
 
     @Test
@@ -393,6 +399,7 @@ class AssetServiceTest {
         assertThat(stored.get(0)).endsWith("/original.jpg=A");
         assertThat(stored.get(1)).endsWith("/original.mp4=BB");
         verify(assetRepository, times(2)).save(any(Asset.class));
+        verify(thumbnailService).generateAfterCommit(result.created().stream().map(AssetInstanceDto::id).toList());
     }
 
     @Test
