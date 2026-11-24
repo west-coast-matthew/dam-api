@@ -1,6 +1,6 @@
-# create client api jar
+# asset search operations
 
-**Status:** ready
+status: ready
 
 ## Goal
 

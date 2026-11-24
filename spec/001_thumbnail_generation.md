@@ -1,6 +1,6 @@
-# implement user permissions
+# thumbnail generation
 
-**Status:** ready
+status: ready
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # initial user security
 
-**Status:** ready
+status: ready
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # support for ratings
 
-**Status:** ready
+status: ready
 
 ## Goal
 

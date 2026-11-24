@@ -1,6 +1,6 @@
-# asset search operations
+# support for lightboxes
 
-**Status:** ready
+status: ready
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # init logic
 
-**Status:** completed
+status: completed
 
 ## Summary
 

@@ -1,6 +1,6 @@
 # asset storage operations
 
-**Status:** ready
+status: ready
 
 ## Goal
 

@@ -1,6 +1,6 @@
-# support for lightboxes
+# implement user permissions
 
-**Status:** ready
+status: ready
 
 ## Goal
 

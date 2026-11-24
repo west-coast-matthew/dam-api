@@ -1,6 +1,6 @@
 # define core entities
 
-**Status:** completed
+status: completed
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # initialization of default setup
 
-**Status:** ready
+status: ready
 
 ## Summary
 

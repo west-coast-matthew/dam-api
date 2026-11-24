@@ -1,6 +1,6 @@
 # default asset categories
 
-**Status:** completed
+status: completed
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # core entity api support
 
-**Status:** completed
+status: completed
 
 ## Goal
 

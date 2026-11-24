@@ -1,6 +1,6 @@
-# implement custom excptions
+# support for favorites
 
-**Status:** ready
+status: ready
 
 ## Goal
 

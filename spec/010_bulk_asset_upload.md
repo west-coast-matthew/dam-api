@@ -1,6 +1,6 @@
 # bulk asset upload
 
-**Status:** completed
+status: completed
 
 ## Goal
 

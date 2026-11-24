@@ -1,6 +1,6 @@
-# thumbnail generation
+# create client api jar
 
-**Status:** ready
+status: ready
 
 ## Goal
 
