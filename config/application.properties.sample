@@ -19,6 +19,11 @@ dam.db.password=change_me
 # Folder that holds uploaded asset files (must be writable by the app)
 dam.storage.root-dir=/var/data/dam
 
+# ---- Thumbnails ----
+# ImageMagick and ffmpeg executables (absolute paths if they aren't on the app's PATH)
+#dam.thumbnails.magick-command=/usr/local/bin/magick
+#dam.thumbnails.ffmpeg-command=/usr/local/bin/ffmpeg
+
 # ---- Optional overrides ----
 #server.port=8080
 #logging.level.com.twofourseven.dam=DEBUG

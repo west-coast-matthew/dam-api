@@ -89,6 +89,16 @@ Assets:
   (`version_N.ext`); otherwise it is overwritten. File clean-up is tied to the transaction outcome
   via `TransactionCallbacks`.
 
+Thumbnails (spec 001), package `services.thumbnails`: `ThumbnailGenerationService` (impl
+`ThumbnailGenerationServiceImpl`) takes bytes or a stream plus a file name and returns a `Thumbnail`
+(PNG bytes); it doesn't store anything. The work is done by pluggable `ThumbnailGenerator` beans; the
+first supporting one in `@Order` order wins, so a deployment overrides a built-in with a higher-precedence
+bean. Built-ins: `ImageMagickImageThumbnailGenerator` (jpg/jpeg/gif/png/svg/bmp/psd),
+`ImageMagickPdfThumbnailGenerator` (first page; needs Ghostscript), `FfmpegVideoThumbnailGenerator`
+(avi/mkv/mp4/mov, frame at `dam.thumbnails.video-frame-offset`, first frame if the video is shorter) and
+`StaticAudioThumbnailGenerator` (`resources/thumbnails/audio.png`). Tools run through `CommandRunner`
+(no shell, timeout), which tests mock. Settings: `ThumbnailProperties` (`dam.thumbnails.*`).
+
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
 
