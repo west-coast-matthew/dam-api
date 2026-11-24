@@ -18,6 +18,7 @@ class MediaTypeResolverTest {
             "PHOTO.JPEG, IMAGE, image/jpeg, jpeg",
             "logo.svg, IMAGE, image/svg+xml, svg",
             "banner.webp, IMAGE, image/webp, webp",
+            "layers.PSD, IMAGE, image/vnd.adobe.photoshop, psd",
             "clip.mp4, VIDEO, video/mp4, mp4",
             "clip.MOV, VIDEO, video/quicktime, mov",
             "brochure.pdf, DOCUMENT, application/pdf, pdf",
@@ -50,5 +51,14 @@ class MediaTypeResolverTest {
         assertThat(MediaTypeResolver.isZip("bundle.ZIP")).isTrue();
         assertThat(MediaTypeResolver.isZip("photo.jpg")).isFalse();
         assertThat(MediaTypeResolver.isSupported("bundle.zip")).isFalse();
+    }
+
+    @Test
+    void classifiesWithoutRejectingAudio() {
+        assertThat(MediaTypeResolver.classify("song.MP3")).contains(MediaType.AUDIO);
+        assertThat(MediaTypeResolver.classify("clip.mkv")).contains(MediaType.VIDEO);
+        assertThat(MediaTypeResolver.classify("brochure.pdf")).contains(MediaType.DOCUMENT);
+        assertThat(MediaTypeResolver.classify("notes.txt")).isEmpty();
+        assertThat(MediaTypeResolver.classify("no-extension")).isEmpty();
     }
 }

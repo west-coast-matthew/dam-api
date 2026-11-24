@@ -5,6 +5,7 @@ import com.twofourseven.dam.exceptions.BadRequestException;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -21,6 +22,7 @@ public final class MediaTypeResolver {
             image("jpg", "image/jpeg"), image("jpeg", "image/jpeg"), image("png", "image/png"),
             image("gif", "image/gif"), image("webp", "image/webp"), image("svg", "image/svg+xml"),
             image("tif", "image/tiff"), image("tiff", "image/tiff"), image("bmp", "image/bmp"),
+            image("psd", "image/vnd.adobe.photoshop"),
             image("heic", "image/heic"), image("heif", "image/heif"), image("avif", "image/avif"),
             video("mp4", "video/mp4"), video("m4v", "video/x-m4v"), video("mov", "video/quicktime"),
             video("avi", "video/x-msvideo"), video("mkv", "video/x-matroska"), video("webm", "video/webm"),
@@ -48,6 +50,18 @@ public final class MediaTypeResolver {
         return resolved;
     }
 
+    /**
+     * The media type of {@code filename} without rejecting anything: unlike {@link #resolve}, audio
+     * files give {@link MediaType#AUDIO}. Empty when the extension is missing or unknown.
+     */
+    public static Optional<MediaType> classify(String filename) {
+        String ext = extension(filename);
+        if (AUDIO.contains(ext)) {
+            return Optional.of(MediaType.AUDIO);
+        }
+        return Optional.ofNullable(BY_EXTENSION.get(ext)).map(Resolved::mediaType);
+    }
+
     public static boolean isSupported(String filename) {
         return BY_EXTENSION.containsKey(extension(filename));
     }
@@ -57,7 +71,7 @@ public final class MediaTypeResolver {
     }
 
     /** Lower case extension without the dot, or "" if there is none. */
-    static String extension(String filename) {
+    public static String extension(String filename) {
         if (filename == null) {
             return "";
         }
