@@ -44,6 +44,10 @@ Other packages:
   `save()` persists new objects instead of merging a copy; new UUID entities must extend it too. Workspace and Catalog names are
   required and unique (`@NotBlank`, `unique = true`). `MediaType` here is the asset enum, not
   Spring's `org.springframework.http.MediaType`.
+- Startup initial data (spec/002): `config/AppInitializer` listens for `ApplicationReadyEvent` and, when
+  no workspace exists, calls `AppInitializationService.initialize()` (impl `AppInitializationServiceImpl`),
+  which creates workspace `default` → catalog `default catalog` → its default category `default category`.
+  Failures (e.g. database down) are logged, not thrown. Off with `dam.init.enabled=false`.
 - `WorkspaceInitializationService` creates the first workspace + catalog
   (`initializeDefaultWorkspace()` or `setupWorkspace(...)`).
 - The schema is not generated (`spring.jpa.hibernate.ddl-auto=none`); tables must exist in MariaDB.

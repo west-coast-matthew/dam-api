@@ -36,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "dam.db.username=api-docs",
         "dam.db.password=api-docs",
         "dam.storage.root-dir=${java.io.tmpdir}/dam-api-docs",
+        "dam.init.enabled=false",
         "springdoc.api-docs.enabled=true",
         "springdoc.writer-with-default-pretty-printer=true",
         "springdoc.writer-with-order-by-keys=true",
