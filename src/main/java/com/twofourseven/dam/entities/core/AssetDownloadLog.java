@@ -20,7 +20,7 @@ import java.util.UUID;
 @Table(name = "asset_download_logs")
 @Getter
 @Setter
-public class AssetDownloadLog {
+public class AssetDownloadLog extends AssignedIdEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)

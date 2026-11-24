@@ -40,7 +40,8 @@ Other packages:
 - `config` — Spring `@Configuration` classes.
 - `entities.core` — core JPA entities (Workspace → Catalog → Asset, plus Category, Tag,
   AssetVersion, Lightbox, LightboxItem, UserAssetInteraction, AssetDownloadLog). Entities use
-  Lombok `@Getter`/`@Setter`; ids are `UUID`s assigned in Java. Workspace and Catalog names are
+  Lombok `@Getter`/`@Setter`; ids are `UUID`s assigned in Java. Those entities extend `AssignedIdEntity` (`Persistable`), so
+  `save()` persists new objects instead of merging a copy; new UUID entities must extend it too. Workspace and Catalog names are
   required and unique (`@NotBlank`, `unique = true`). `MediaType` here is the asset enum, not
   Spring's `org.springframework.http.MediaType`.
 - `WorkspaceInitializationService` creates the first workspace + catalog

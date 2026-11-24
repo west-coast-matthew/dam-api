@@ -32,7 +32,7 @@ import java.util.UUID;
 @Table(name = "catalogs")
 @Getter
 @Setter
-public class Catalog {
+public class Catalog extends AssignedIdEntity {
 
     public static final int NAME_MAX_LENGTH = 255;
     public static final int DESCRIPTION_MAX_LENGTH = 2000;

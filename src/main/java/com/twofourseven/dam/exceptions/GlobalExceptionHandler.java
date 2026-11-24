@@ -88,6 +88,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({ConflictException.class, DataIntegrityViolationException.class})
     public ResponseEntity<ErrorResponseVO> handleConflict(RuntimeException ex, HttpServletRequest req) {
         String message = ex instanceof ConflictException ? ex.getMessage() : "Request conflicts with existing data";
+        if (ex instanceof DataIntegrityViolationException dive) {
+            // The database's own message names the constraint; log it, never return it.
+            log.debug("Data integrity violation on {} {}: {}", req.getMethod(), req.getRequestURI(),
+                    dive.getMostSpecificCause().getMessage(), dive);
+        }
         return build(HttpStatus.CONFLICT, message, req);
     }
 

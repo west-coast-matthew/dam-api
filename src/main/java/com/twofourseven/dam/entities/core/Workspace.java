@@ -30,7 +30,7 @@ import java.util.UUID;
 @Table(name = "workspaces")
 @Getter
 @Setter
-public class Workspace {
+public class Workspace extends AssignedIdEntity {
 
     public static final int NAME_MAX_LENGTH = 255;
     public static final int DESCRIPTION_MAX_LENGTH = 2000;

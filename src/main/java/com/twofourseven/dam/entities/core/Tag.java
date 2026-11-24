@@ -28,7 +28,7 @@ import java.util.UUID;
 @Table(name = "tags")
 @Getter
 @Setter
-public class Tag {
+public class Tag extends AssignedIdEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)

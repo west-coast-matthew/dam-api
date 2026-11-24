@@ -33,7 +33,7 @@ import java.util.UUID;
 @Table(name = "categories")
 @Getter
 @Setter
-public class Category {
+public class Category extends AssignedIdEntity {
 
     public static final String DEFAULT_NAME = "Default";
     public static final String DEFAULT_SLUG = "default";

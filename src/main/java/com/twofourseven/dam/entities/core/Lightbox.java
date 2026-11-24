@@ -29,7 +29,7 @@ import java.util.UUID;
 @Table(name = "lightboxes")
 @Getter
 @Setter
-public class Lightbox {
+public class Lightbox extends AssignedIdEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)

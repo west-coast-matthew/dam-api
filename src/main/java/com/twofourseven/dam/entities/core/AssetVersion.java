@@ -25,7 +25,7 @@ import java.util.UUID;
 @Table(name = "asset_versions")
 @Getter
 @Setter
-public class AssetVersion {
+public class AssetVersion extends AssignedIdEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)

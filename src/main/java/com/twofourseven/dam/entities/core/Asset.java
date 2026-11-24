@@ -40,7 +40,7 @@ import java.util.UUID;
 @Table(name = "assets")
 @Getter
 @Setter
-public class Asset {
+public class Asset extends AssignedIdEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
