@@ -37,6 +37,8 @@ public class Category extends AssignedIdEntity {
 
     public static final String DEFAULT_NAME = "Default";
     public static final String DEFAULT_SLUG = "default";
+    public static final int NAME_MAX_LENGTH = 255;
+    public static final int DESCRIPTION_MAX_LENGTH = 2000;
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
@@ -58,6 +60,14 @@ public class Category extends AssignedIdEntity {
 
     @Column(name = "slug", nullable = false)
     private String slug;
+
+    /** Optional free text shown in the category editor. */
+    @Column(name = "description", length = DESCRIPTION_MAX_LENGTH)
+    private String description;
+
+    /** 0-based order among its siblings. The column is sort_order because POSITION is a MariaDB function. */
+    @Column(name = "sort_order", nullable = false)
+    private Integer position = 0;
 
     /** True for the catalog's default category. Exactly one per catalog; it can't be deleted or nested. */
     @Column(name = "is_default", nullable = false)

@@ -11,7 +11,12 @@ import java.util.UUID;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
-    List<Category> findByCatalogIdOrderByNameAsc(UUID catalogId);
+    /** In sibling order; parents are not guaranteed to come before their children. */
+    List<Category> findByCatalogIdOrderByPositionAscNameAsc(UUID catalogId);
+
+    long countByCatalogIdAndParentIsNull(UUID catalogId);
+
+    long countByParentId(UUID parentId);
 
     /** Top-level category names are unique within a catalog. */
     boolean existsByCatalogIdAndParentIsNullAndNameIgnoreCase(UUID catalogId, String name);

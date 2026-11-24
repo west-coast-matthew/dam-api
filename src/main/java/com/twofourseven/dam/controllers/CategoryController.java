@@ -1,6 +1,7 @@
 package com.twofourseven.dam.controllers;
 
 import com.twofourseven.dam.services.CategoryService;
+import com.twofourseven.dam.vo.CategoryChangeSetVO;
 import com.twofourseven.dam.vo.CategoryInstanceDto;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,15 @@ public class CategoryController {
     public ResponseEntity<CategoryInstanceDto> create(@Valid @RequestBody CategoryInstanceDto dto) {
         CategoryInstanceDto created = service.create(dto);
         return ResponseEntity.created(URI.create("/categories/" + created.id())).body(created);
+    }
+
+    /**
+     * Applies a category editor's change set (creates, updates and deletes) to one catalog in a
+     * single transaction and returns the catalog's categories afterwards.
+     */
+    @PostMapping("/changes")
+    public List<CategoryInstanceDto> applyChanges(@RequestParam UUID catalogId, @RequestBody CategoryChangeSetVO changes) {
+        return service.applyChanges(catalogId, changes);
     }
 
     /** Replaces the editable fields. */

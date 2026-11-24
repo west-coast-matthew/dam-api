@@ -58,6 +58,14 @@ on `Asset.categories`); `AssetService` puts assets without one in the default. T
 renamed but not deleted (409) or nested (400); deleting another category moves assets left without
 a category to the default.
 
+Category editor support (db/016): categories have an optional `description` and a 0-based sibling
+`position` (column `sort_order`); `CategoryInstanceDto` also returns a read-only `assetCount`.
+`POST /categories/changes?catalogId=` takes a `CategoryChangeSetVO` (`created` with client `tempId`s,
+`updated`, `deleted`) and applies it in one transaction, returning the catalog's categories. There a
+`parentId` is a string (an existing UUID or a `tempId`), deletes take descendants (after moves),
+sibling names are unique case-insensitively at every level, and cycles are a 400. dam-ui's category
+editor uses this endpoint.
+
 REST endpoints (spec 004): `/workspaces`, `/catalogs`, `/categories`, `/lightboxes`, `/assets`, using
 the `*InstanceDto` records in `vo`. Create = 201 with Location, delete = 204. Deleting a workspace,
 catalog or category that still has children is a 409. Top-level category names are unique per catalog.
