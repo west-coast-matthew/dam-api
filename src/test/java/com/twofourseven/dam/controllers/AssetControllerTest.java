@@ -3,7 +3,9 @@ package com.twofourseven.dam.controllers;
 import com.twofourseven.dam.entities.core.AssetStatus;
 import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.exceptions.GlobalExceptionHandler;
+import com.twofourseven.dam.services.AssetActivityService;
 import com.twofourseven.dam.services.AssetService;
+import com.twofourseven.dam.vo.AssetUploadActivityVO;
 import com.twofourseven.dam.vo.AssetInstanceDto;
 import com.twofourseven.dam.vo.AssetVersionVO;
 import com.twofourseven.dam.vo.BulkUploadResultVO;
@@ -45,6 +47,8 @@ class AssetControllerTest {
 
     @Mock
     private AssetService service;
+    @Mock
+    private AssetActivityService activityService;
     @InjectMocks
     private AssetController controller;
 
@@ -181,5 +185,47 @@ class AssetControllerTest {
     void deleteReturns204() throws Exception {
         mockMvc.perform(delete("/assets/{id}", id)).andExpect(status().isNoContent());
         verify(service).delete(id);
+    }
+
+    @Test
+    void activityPassesFiltersAndReturnsTheSummary() throws Exception {
+        UUID categoryId = UUID.randomUUID();
+        UUID childId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.of(2026, 11, 24, 12, 0);
+        when(activityService.activity(categoryId, "15m", 5)).thenReturn(new AssetUploadActivityVO(
+                900_000L, now.minusMinutes(15), now, 1, 3, categoryId, "Animals",
+                List.of(new AssetUploadActivityVO.UploadAttempt(now.minusMinutes(2), 3, "mixed")),
+                List.of(new AssetUploadActivityVO.RecentAsset(id, "dog.jpg", "image", now.minusMinutes(2))),
+                List.of(new AssetUploadActivityVO.SubCategory(childId, "Dogs", 3))));
+
+        mockMvc.perform(get("/assets/activity").param("categoryId", categoryId.toString())
+                        .param("period", "15m").param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastSampleTimePeriod").value(900000))
+                .andExpect(jsonPath("$.totalAssetUploadOperations").value(1))
+                .andExpect(jsonPath("$.totalAssetsUploaded").value(3))
+                .andExpect(jsonPath("$.categoryName").value("Animals"))
+                .andExpect(jsonPath("$.uploadAttempts[0].uploadCount").value(3))
+                .andExpect(jsonPath("$.uploadAttempts[0].fileType").value("mixed"))
+                .andExpect(jsonPath("$.recentAssets[0].title").value("dog.jpg"))
+                .andExpect(jsonPath("$.subCategories[0].title").value("Dogs"))
+                .andExpect(jsonPath("$.subCategories[0].newAssetCount").value(3));
+    }
+
+    @Test
+    void activityWithoutPeriodOrLimitPassesNulls() throws Exception {
+        UUID categoryId = UUID.randomUUID();
+        when(activityService.activity(categoryId, null, null)).thenReturn(new AssetUploadActivityVO(
+                86_400_000L, null, null, 0, 0, categoryId, "Animals", List.of(), List.of(), List.of()));
+
+        mockMvc.perform(get("/assets/activity").param("categoryId", categoryId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastSampleTimePeriod").value(86400000));
+    }
+
+    @Test
+    void activityRequiresAValidCategoryId() throws Exception {
+        mockMvc.perform(get("/assets/activity")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/assets/activity").param("categoryId", "not-a-uuid")).andExpect(status().isBadRequest());
     }
 }

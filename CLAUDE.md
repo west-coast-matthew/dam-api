@@ -108,6 +108,15 @@ stays). A worker reads the original via `AssetStorageService.open`, stores `thum
 (skipped if the file was replaced meanwhile). Types without thumbnail support go to READY. The queue is in
 memory: assets left PENDING_PROCESSING by a restart are not retried.
 
+Upload activity (spec 020): `GET /assets/activity?categoryId=&period=&limit=` returns `AssetUploadActivityVO`
+for a category and its whole subtree: upload operations, totals, newest assets and one entry per direct child
+(`subCategories`). `period` is parsed with Boot's `DurationStyle` (`15m`, `8h`, `7d`, `PT15M`; default 24h, max
+366d); `limit` is 1–100 (default 10). Assets from one upload request share `Asset.uploadBatchId`
+(`db/020-asset_upload_batch.sql`; null for older assets, which count as their own operation); a batch with more
+than one media type has file type `mixed`. The SQL is native MariaDB (recursive CTEs) in
+`repositories/AssetActivityRepository`, which reads UUIDs with `addScalar(..., UUID.class)`; it isn't covered by
+unit tests.
+
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
 

@@ -24,6 +24,7 @@ import com.twofourseven.dam.vo.SkippedFileVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
@@ -139,6 +140,9 @@ class AssetServiceTest {
         assertThat(stored).containsExactly(expectedDir + "/original.jpg=jpeg!");
         verify(storage).store(eq(catalog.getWorkspace().getId()), anyString(), any());
         verify(thumbnailService).generateAfterCommit(List.of(result.id()));
+        ArgumentCaptor<Asset> saved = ArgumentCaptor.forClass(Asset.class);
+        verify(assetRepository).save(saved.capture());
+        assertThat(saved.getValue().getUploadBatchId()).isNotNull();
     }
 
     @Test
@@ -398,7 +402,10 @@ class AssetServiceTest {
         assertThat(stored).hasSize(2);
         assertThat(stored.get(0)).endsWith("/original.jpg=A");
         assertThat(stored.get(1)).endsWith("/original.mp4=BB");
-        verify(assetRepository, times(2)).save(any(Asset.class));
+        ArgumentCaptor<Asset> saved = ArgumentCaptor.forClass(Asset.class);
+        verify(assetRepository, times(2)).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(Asset::getUploadBatchId).doesNotContainNull().containsOnly(
+                saved.getAllValues().getFirst().getUploadBatchId());
         verify(thumbnailService).generateAfterCommit(result.created().stream().map(AssetInstanceDto::id).toList());
     }
 

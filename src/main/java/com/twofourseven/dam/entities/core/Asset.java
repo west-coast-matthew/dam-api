@@ -82,6 +82,13 @@ public class Asset extends AssignedIdEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    /**
+     * Shared by every asset created in the same upload request (one for {@code POST /assets}, one per
+     * bulk zip). Null for assets created before db/020; those count as their own upload.
+     */
+    @Column(name = "upload_batch_id", updatable = false)
+    private UUID uploadBatchId;
+
     @OneToMany(mappedBy = "asset", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<AssetVersion> versions = new HashSet<>();
 
