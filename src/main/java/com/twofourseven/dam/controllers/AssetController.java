@@ -1,12 +1,22 @@
 package com.twofourseven.dam.controllers;
 
+import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.services.AssetActivityService;
+import com.twofourseven.dam.services.AssetBrowseService;
+import com.twofourseven.dam.services.AssetBrowseService.AssetContent;
+import com.twofourseven.dam.services.AssetBrowseService.SearchQuery;
 import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetInstanceDto;
+import com.twofourseven.dam.vo.AssetPageVO;
 import com.twofourseven.dam.vo.AssetUploadActivityVO;
 import com.twofourseven.dam.vo.AssetUploadSummaryVO;
 import com.twofourseven.dam.vo.AssetVersionVO;
 import com.twofourseven.dam.vo.BulkUploadResultVO;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,7 +32,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -41,6 +55,13 @@ import java.util.UUID;
  *   <li>{@code GET /assets/activity/summary?catalogId=&categoryId=&period=} — the same window broken
  *       down by category: each category with uploads, its path and its own upload events. Give
  *       {@code catalogId} for the whole catalog, or {@code categoryId} to narrow it to that subtree.</li>
+ *   <li>{@code GET /assets/search?catalogId=&categoryId=&includeSubcategories=&addedFrom=&addedTo=&tags=&tagMatch=&q=&page=&size=&sort=&direction=}
+ *       — spec 022: a page of assets ({@link AssetPageVO}). Dates are ISO days (both inclusive), {@code tags}
+ *       repeats or is comma-separated, {@code tagMatch} is all (default) or any, {@code q} matches the file
+ *       name, {@code size} is 1–200 (default 24), {@code sort} is added (default), name, size or type and {@code direction} asc or desc
+ *       (default: newest and largest first, names and types A–Z).</li>
+ *   <li>{@code GET /assets/{id}/file[?download=true]} and {@code GET /assets/{id}/thumbnail} — the original
+ *       file and its JPEG thumbnail (404 until the thumbnail exists).</li>
  *   <li>{@code PUT /assets/{id}} — JSON metadata update; null fields are unchanged.</li>
  *   <li>{@code PUT /assets/{id}/file} — multipart {@code file}; replaces the file, keeping the old
  *       one as a version when the asset's versioning is enabled.</li>
@@ -52,8 +73,10 @@ public class AssetController {
 
     private final AssetService service;
     private final AssetActivityService activityService;
+    private final AssetBrowseService browseService;
 
-    public AssetController(AssetService service, AssetActivityService activityService) {
+    public AssetController(AssetService service, AssetActivityService activityService, AssetBrowseService browseService) {
+        this.browseService = browseService;
         this.service = service;
         this.activityService = activityService;
     }
@@ -75,6 +98,54 @@ public class AssetController {
                                               @RequestParam(required = false) UUID categoryId,
                                               @RequestParam(required = false) String period) {
         return activityService.summary(catalogId, categoryId, period);
+    }
+
+    @GetMapping("/search")
+    public AssetPageVO search(@RequestParam UUID catalogId,
+                              @RequestParam(required = false) UUID categoryId,
+                              @RequestParam(defaultValue = "false") boolean includeSubcategories,
+                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate addedFrom,
+                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate addedTo,
+                              @RequestParam(required = false) List<String> tags,
+                              @RequestParam(defaultValue = "all") String tagMatch,
+                              @RequestParam(required = false) String q,
+                              @RequestParam(required = false) Integer page,
+                              @RequestParam(required = false) Integer size,
+                              @RequestParam(required = false) String sort,
+                              @RequestParam(required = false) String direction) {
+        boolean matchAll = switch (tagMatch.strip().toLowerCase(Locale.ROOT)) {
+            case "all" -> true;
+            case "any" -> false;
+            default -> throw new BadRequestException(
+                    "Invalid tagMatch '" + tagMatch + "'; use all or any");
+        };
+        return browseService.search(new SearchQuery(catalogId, categoryId, includeSubcategories, addedFrom, addedTo,
+                tags, matchAll, q, page, size, sort, direction));
+    }
+
+    @GetMapping("/{id}/file")
+    public ResponseEntity<InputStreamResource> file(@PathVariable UUID id,
+                                                    @RequestParam(defaultValue = "false") boolean download) {
+        return stream(browseService.file(id), download, CacheControl.noCache());
+    }
+
+    @GetMapping("/{id}/thumbnail")
+    public ResponseEntity<InputStreamResource> thumbnail(@PathVariable UUID id) {
+        // Short-lived: a replaced file gets a new thumbnail under the same URL.
+        return stream(browseService.thumbnail(id), false, CacheControl.maxAge(Duration.ofMinutes(5)).cachePrivate());
+    }
+
+    private static ResponseEntity<InputStreamResource> stream(AssetContent content, boolean download, CacheControl cache) {
+        ContentDisposition disposition = (download ? ContentDisposition.attachment() : ContentDisposition.inline())
+                .filename(content.filename(), StandardCharsets.UTF_8).build();
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(content.mimeType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .cacheControl(cache);
+        if (content.size() != null) {
+            response.contentLength(content.size());
+        }
+        return response.body(new InputStreamResource(content.content()));
     }
 
     @GetMapping("/{id}")
