@@ -1,7 +1,9 @@
 package com.twofourseven.dam.controllers;
 
+import com.twofourseven.dam.services.AssetActivityService;
 import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetInstanceDto;
+import com.twofourseven.dam.vo.AssetUploadActivityVO;
 import com.twofourseven.dam.vo.AssetVersionVO;
 import com.twofourseven.dam.vo.BulkUploadResultVO;
 import org.springframework.http.MediaType;
@@ -32,6 +34,9 @@ import java.util.UUID;
  *   <li>{@code POST /assets/bulk} — multipart: {@code file} (a zip of media files) and {@code asset}
  *       (JSON applied to every file, at least {@code catalogId}). One asset per supported file. 202
  *       Accepted, with thumbnails made in the background as for a single upload.</li>
+ *   <li>{@code GET /assets/activity?categoryId=&period=&limit=} — recent upload activity for a category
+ *       and its subcategories: {@code period} like {@code 15m}, {@code 8h} or {@code PT15M} (default 24h),
+ *       {@code limit} recent assets (default 10, at most 100).</li>
  *   <li>{@code PUT /assets/{id}} — JSON metadata update; null fields are unchanged.</li>
  *   <li>{@code PUT /assets/{id}/file} — multipart {@code file}; replaces the file, keeping the old
  *       one as a version when the asset's versioning is enabled.</li>
@@ -42,14 +47,23 @@ import java.util.UUID;
 public class AssetController {
 
     private final AssetService service;
+    private final AssetActivityService activityService;
 
-    public AssetController(AssetService service) {
+    public AssetController(AssetService service, AssetActivityService activityService) {
         this.service = service;
+        this.activityService = activityService;
     }
 
     @GetMapping
     public List<AssetInstanceDto> list(@RequestParam(required = false) UUID catalogId) {
         return service.list(catalogId);
+    }
+
+    @GetMapping("/activity")
+    public AssetUploadActivityVO uploadActivity(@RequestParam UUID categoryId,
+                                                @RequestParam(required = false) String period,
+                                                @RequestParam(required = false) Integer limit) {
+        return activityService.activity(categoryId, period, limit);
     }
 
     @GetMapping("/{id}")

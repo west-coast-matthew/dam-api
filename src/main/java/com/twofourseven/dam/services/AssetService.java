@@ -123,6 +123,7 @@ public class AssetService {
         Catalog catalog = requireCatalog(dto);
         Asset asset = new Asset();
         asset.setCatalog(catalog);
+        asset.setUploadBatchId(UUID.randomUUID());
         applyMetadata(asset, dto);
 
         try (UploadedMedia media = uploadReader.read(file)) {
@@ -154,10 +155,12 @@ public class AssetService {
                 : resolveCategories(catalog, dto.categoryIds());
         Set<Tag> tags = dto.tags() == null ? Set.of() : resolveTags(catalog, dto.tags());
 
+        UUID batchId = UUID.randomUUID();
         List<AssetInstanceDto> created = new ArrayList<>();
         List<SkippedFileVO> skipped = uploadReader.readEach(zip, media -> {
             Asset asset = new Asset();
             asset.setCatalog(catalog);
+            asset.setUploadBatchId(batchId);
             asset.setVersioningEnabled(Boolean.TRUE.equals(dto.versioningEnabled()));
             if (dto.customMetadata() != null) {
                 asset.setCustomMetadata(new HashMap<>(dto.customMetadata()));
