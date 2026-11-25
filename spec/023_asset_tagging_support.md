@@ -1,4 +1,4 @@
-status: ready
+status: completed
 
 # 023 — Asset tagging support
 

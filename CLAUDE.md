@@ -132,6 +132,12 @@ JPA `Specification`s (`repositories/AssetSpecifications`, EXISTS subqueries so p
 `GET /assets/{id}/file[?download=true]` streams the original; `GET /assets/{id}/thumbnail` the JPEG thumbnail
 (404 until it exists).
 
+Tags (spec 023): assigned by name through the asset endpoints (`AssetService.resolveTags` finds case-insensitively or
+creates in the catalog; on update, null = unchanged and `[]` = clear). `GET /tags?catalogId=&q=&limit=` (`TagController` →
+`TagService`) lists the catalog's tags as `TagVO` (`id`, `name`, `assetCount`) sorted by name. `q` is an escaped
+case-insensitive LIKE "contains" filter, and `limit` is 1–200 (default 50). The JPQL with the counts lives in
+`TagRepository.findUsageByCatalog` (`TagUsage` projection). Tags left without assets are kept.
+
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
 

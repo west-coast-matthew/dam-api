@@ -41,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -342,6 +343,46 @@ class AssetServiceTest {
         assertThat(result.versioningEnabled()).isTrue();
         assertThat(result.customMetadata()).containsEntry("k", "v");
         assertThat(stored).isEmpty();
+    }
+
+    @Test
+    void updateReplacesClearsOrKeepsTags() {
+        Asset asset = existingAsset(false);
+        asset.getCategories().add(defaultCategory);
+        Tag old = new Tag();
+        old.setCatalog(catalog);
+        old.setName("Old");
+        asset.getTags().add(old);
+        Tag brand = new Tag();
+        brand.setCatalog(catalog);
+        brand.setName("Brand");
+        when(tagRepository.findFirstByCatalogIdAndNameIgnoreCase(catalog.getId(), "brand")).thenReturn(Optional.of(brand));
+        when(tagRepository.findFirstByCatalogIdAndNameIgnoreCase(catalog.getId(), "Launch")).thenReturn(Optional.empty());
+        when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // null leaves tags unchanged
+        assertThat(service.update(asset.getId(), AssetInstanceDto.request(null, true, null, null, null)).tags())
+                .containsExactly("Old");
+
+        // a list replaces them: trimmed, blanks dropped, duplicates ignoring case removed, existing spelling reused
+        assertThat(service.update(asset.getId(),
+                AssetInstanceDto.request(null, null, null, null, List.of(" brand ", "Launch", "BRAND", "  "))).tags())
+                .containsExactly("Brand", "Launch");
+        verify(tagRepository).save(argThat(t -> t.getName().equals("Launch")));
+
+        // an empty list clears them
+        assertThat(service.update(asset.getId(), AssetInstanceDto.request(null, null, null, null, List.of())).tags())
+                .isEmpty();
+    }
+
+    @Test
+    void tagNamesLongerThan255AreRejected() {
+        Asset asset = existingAsset(false);
+
+        assertThatThrownBy(() -> service.update(asset.getId(),
+                AssetInstanceDto.request(null, null, null, null, List.of("x".repeat(256)))))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("255");
     }
 
     @Test
