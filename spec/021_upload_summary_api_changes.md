@@ -1,12 +1,7 @@
-status: ready
+status: completed
 
 # 021 — upload summary api changes
 
-## Summary
+spec in ui project will drive changes here
 
-
-## Requirements
-
-
-## Acceptance criteria
 
