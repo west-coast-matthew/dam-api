@@ -29,6 +29,15 @@ An asset is a piece of digital media that we are storing. This may be an image, 
 When assets are stored, a thumbnail is generated for it (unless it is an audio file, in which case a common default thumbnail is assigned.
 
 
+### Tags
+Tags are flat, non-hierarchical labels scoped to a catalog. An asset can carry any number of them, and they are matched by name ignoring case.
+
+- Tags are assigned through the asset endpoints by name (`tags` in `AssetInstanceDto`): on a single upload (`POST /assets`), on a bulk upload (`POST /assets/bulk`, where the same tags go on every asset in the zip), and on an update (`PUT /assets/{id}`). Names are trimmed, blank names and case-insensitive duplicates are dropped, an existing tag's spelling is reused, and unknown names create a new tag in the asset's catalog. Names are limited to 255 characters.
+- On update, a list replaces the asset's tags, an empty list clears them, and `null` leaves them unchanged.
+- `GET /tags?catalogId=&q=&limit=` lists a catalog's tags (`TagVO`: `id`, `name`, `assetCount`) sorted by name, so clients can offer existing tags. `q` is a case-insensitive "contains" filter, and `limit` is 1–200 (default 50).
+- Tags left without any assets are kept, so they stay available for selection.
+- `GET /assets/search` filters by `tags` with `tagMatch=all|any`.
+
 ## Folder based persistence
 
 The STORAGE_SPECIFICATION.md details the persistence approach used for storing media.
