@@ -117,6 +117,12 @@ than one media type has file type `mixed`. The SQL is native MariaDB (recursive 
 `repositories/AssetActivityRepository`, which reads UUIDs with `addScalar(..., UUID.class)`; it isn't covered by
 unit tests.
 
+Upload summary (spec 021, for dam-ui's recent uploads panel): `GET /assets/activity/summary?catalogId=&categoryId=&period=`
+returns `AssetUploadSummaryVO`, the window broken down by category: only categories with uploads, in editor order
+(depth-first by position), each with its `path`/`pathIds` and its own `uploadEvents` (assets directly in it, so a
+parent doesn't repeat its children). `catalogId` covers the whole catalog; `categoryId` narrows it to that subtree
+(the catalog is taken from it; both given must match). Totals count each asset and operation once.
+
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
 

@@ -4,6 +4,7 @@ import com.twofourseven.dam.services.AssetActivityService;
 import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetInstanceDto;
 import com.twofourseven.dam.vo.AssetUploadActivityVO;
+import com.twofourseven.dam.vo.AssetUploadSummaryVO;
 import com.twofourseven.dam.vo.AssetVersionVO;
 import com.twofourseven.dam.vo.BulkUploadResultVO;
 import org.springframework.http.MediaType;
@@ -37,6 +38,9 @@ import java.util.UUID;
  *   <li>{@code GET /assets/activity?categoryId=&period=&limit=} — recent upload activity for a category
  *       and its subcategories: {@code period} like {@code 15m}, {@code 8h} or {@code PT15M} (default 24h),
  *       {@code limit} recent assets (default 10, at most 100).</li>
+ *   <li>{@code GET /assets/activity/summary?catalogId=&categoryId=&period=} — the same window broken
+ *       down by category: each category with uploads, its path and its own upload events. Give
+ *       {@code catalogId} for the whole catalog, or {@code categoryId} to narrow it to that subtree.</li>
  *   <li>{@code PUT /assets/{id}} — JSON metadata update; null fields are unchanged.</li>
  *   <li>{@code PUT /assets/{id}/file} — multipart {@code file}; replaces the file, keeping the old
  *       one as a version when the asset's versioning is enabled.</li>
@@ -64,6 +68,13 @@ public class AssetController {
                                                 @RequestParam(required = false) String period,
                                                 @RequestParam(required = false) Integer limit) {
         return activityService.activity(categoryId, period, limit);
+    }
+
+    @GetMapping("/activity/summary")
+    public AssetUploadSummaryVO uploadSummary(@RequestParam(required = false) UUID catalogId,
+                                              @RequestParam(required = false) UUID categoryId,
+                                              @RequestParam(required = false) String period) {
+        return activityService.summary(catalogId, categoryId, period);
     }
 
     @GetMapping("/{id}")

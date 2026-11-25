@@ -31,6 +31,15 @@ public class AssetActivityRepository {
     public record SubCategoryCount(UUID id, String name, long newAssetCount) {
     }
 
+    /** One upload request's assets that are directly in one category (spec 021). */
+    public record CategoryOperation(UUID categoryId, UUID operationId, LocalDateTime uploadedAt, long assetCount,
+                                    long mediaTypeCount, String mediaType) {
+    }
+
+    /** Distinct upload operations and assets in a scope; an asset in several categories counts once. */
+    public record Totals(long operations, long assets) {
+    }
+
     /** The selected category's subtree and its assets created since {@code :since}. */
     private static final String SUBTREE_ASSETS = """
             WITH RECURSIVE tree (id) AS (
@@ -80,8 +89,91 @@ public class AssetActivityRepository {
             ORDER BY child.sort_order, child.name
             """;
 
+    /**
+     * Spec 021 scope: the subtree of {@code :categoryId}, or every category of {@code :catalogId}
+     * (all its top-level categories and their subtrees).
+     */
+    private static String scopedTree(boolean byCategory) {
+        String roots = byCategory ? "id = :categoryId" : "catalog_id = :catalogId AND parent_id IS NULL";
+        return """
+                WITH RECURSIVE tree (id) AS (
+                    SELECT id FROM categories WHERE %s
+                    UNION ALL
+                    SELECT c.id FROM categories c JOIN tree t ON c.parent_id = t.id
+                )
+                """.formatted(roots);
+    }
+
+    /** Per category (assets directly in it, not below) and upload operation. */
+    private static final String CATEGORY_OPERATIONS = """
+            SELECT ac.category_id AS category_id,
+                   COALESCE(a.upload_batch_id, a.id) AS operation_id,
+                   MIN(a.created_at) AS uploaded_at,
+                   COUNT(*) AS asset_count,
+                   COUNT(DISTINCT a.media_type) AS media_type_count,
+                   MIN(a.media_type) AS media_type
+            FROM assets a
+            JOIN asset_categories ac ON ac.asset_id = a.id
+            JOIN tree t ON t.id = ac.category_id
+            WHERE a.created_at >= :since
+            GROUP BY ac.category_id, COALESCE(a.upload_batch_id, a.id)
+            ORDER BY uploaded_at DESC
+            """;
+
+    private static final String TOTALS = """
+            SELECT COUNT(DISTINCT COALESCE(w.upload_batch_id, w.id)) AS operations, COUNT(*) AS assets
+            FROM (
+                SELECT DISTINCT a.id, a.upload_batch_id
+                FROM assets a
+                JOIN asset_categories ac ON ac.asset_id = a.id
+                JOIN tree t ON t.id = ac.category_id
+                WHERE a.created_at >= :since
+            ) w
+            """;
+
     @PersistenceContext
     private EntityManager entityManager;
+
+    /**
+     * Upload operations since {@code since}, split by the category their assets are directly in,
+     * newest first. Scope: {@code categoryId}'s subtree when given, otherwise the whole catalog.
+     */
+    public List<CategoryOperation> categoryOperations(UUID catalogId, UUID categoryId, LocalDateTime since) {
+        List<Object[]> rows = scoped(CATEGORY_OPERATIONS, catalogId, categoryId, since)
+                .addScalar("category_id", UUID.class)
+                .addScalar("operation_id", UUID.class)
+                .addScalar("uploaded_at", LocalDateTime.class)
+                .addScalar("asset_count", Long.class)
+                .addScalar("media_type_count", Long.class)
+                .addScalar("media_type", String.class)
+                .getResultList();
+        return rows.stream().map(r -> new CategoryOperation((UUID) r[0], (UUID) r[1], (LocalDateTime) r[2], (Long) r[3],
+                (Long) r[4], (String) r[5])).toList();
+    }
+
+    /** Distinct upload operations and assets since {@code since} in the same scope as {@link #categoryOperations}. */
+    public Totals totals(UUID catalogId, UUID categoryId, LocalDateTime since) {
+        List<Object[]> rows = scoped(TOTALS, catalogId, categoryId, since)
+                .addScalar("operations", Long.class)
+                .addScalar("assets", Long.class)
+                .getResultList();
+        Object[] r = rows.getFirst();
+        return new Totals(r[0] == null ? 0 : (Long) r[0], r[1] == null ? 0 : (Long) r[1]);
+    }
+
+    @SuppressWarnings("unchecked")
+    private NativeQuery<Object[]> scoped(String select, UUID catalogId, UUID categoryId, LocalDateTime since) {
+        boolean byCategory = categoryId != null;
+        NativeQuery<Object[]> query = entityManager.createNativeQuery(scopedTree(byCategory) + select)
+                .unwrap(NativeQuery.class);
+        if (byCategory) {
+            query.setParameter("categoryId", categoryId);
+        } else {
+            query.setParameter("catalogId", catalogId);
+        }
+        query.setParameter("since", since);
+        return query;
+    }
 
     /** Upload operations in the category's subtree since {@code since}, newest first. */
     public List<UploadOperation> uploadOperations(UUID categoryId, LocalDateTime since) {

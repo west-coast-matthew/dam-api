@@ -6,6 +6,7 @@ import com.twofourseven.dam.exceptions.GlobalExceptionHandler;
 import com.twofourseven.dam.services.AssetActivityService;
 import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetUploadActivityVO;
+import com.twofourseven.dam.vo.AssetUploadSummaryVO;
 import com.twofourseven.dam.vo.AssetInstanceDto;
 import com.twofourseven.dam.vo.AssetVersionVO;
 import com.twofourseven.dam.vo.BulkUploadResultVO;
@@ -227,5 +228,40 @@ class AssetControllerTest {
     void activityRequiresAValidCategoryId() throws Exception {
         mockMvc.perform(get("/assets/activity")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/assets/activity").param("categoryId", "not-a-uuid")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void summaryPassesFiltersAndReturnsCategoriesWithTheirEvents() throws Exception {
+        UUID catalogId = UUID.randomUUID();
+        UUID bbq = UUID.randomUUID();
+        UUID operation = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.of(2026, 11, 24, 12, 0);
+        when(activityService.summary(catalogId, null, "8h")).thenReturn(new AssetUploadSummaryVO(
+                28_800_000L, now.minusHours(8), now, catalogId, null, 2, 500,
+                List.of(new AssetUploadSummaryVO.CategoryActivity(bbq, "BBQ", List.of("Food", "American", "BBQ"),
+                        List.of(UUID.randomUUID(), UUID.randomUUID(), bbq), 2, 500,
+                        List.of(new AssetUploadSummaryVO.UploadEvent(operation, now.minusMinutes(5), 498, "mixed"),
+                                new AssetUploadSummaryVO.UploadEvent(UUID.randomUUID(), now.minusHours(1), 2, "image"))))));
+
+        mockMvc.perform(get("/assets/activity/summary").param("catalogId", catalogId.toString()).param("period", "8h"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAssetUploadOperations").value(2))
+                .andExpect(jsonPath("$.totalAssetsUploaded").value(500))
+                .andExpect(jsonPath("$.categories[0].path[2]").value("BBQ"))
+                .andExpect(jsonPath("$.categories[0].assetsUploaded").value(500))
+                .andExpect(jsonPath("$.categories[0].uploadEvents[0].operationId").value(operation.toString()))
+                .andExpect(jsonPath("$.categories[0].uploadEvents[0].fileType").value("mixed"));
+    }
+
+    @Test
+    void summaryByCategoryPassesNullCatalog() throws Exception {
+        UUID categoryId = UUID.randomUUID();
+        when(activityService.summary(null, categoryId, null)).thenReturn(new AssetUploadSummaryVO(
+                86_400_000L, null, null, UUID.randomUUID(), categoryId, 0, 0, List.of()));
+
+        mockMvc.perform(get("/assets/activity/summary").param("categoryId", categoryId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(categoryId.toString()))
+                .andExpect(jsonPath("$.categories").isEmpty());
     }
 }

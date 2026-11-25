@@ -5,12 +5,18 @@ import com.twofourseven.dam.entities.core.MediaType;
 import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.exceptions.ResourceNotFoundException;
 import com.twofourseven.dam.repositories.AssetActivityRepository;
+import com.twofourseven.dam.repositories.AssetActivityRepository.CategoryOperation;
+import com.twofourseven.dam.repositories.AssetActivityRepository.Totals;
 import com.twofourseven.dam.repositories.AssetActivityRepository.UploadOperation;
+import com.twofourseven.dam.repositories.CatalogRepository;
 import com.twofourseven.dam.repositories.CategoryRepository;
 import com.twofourseven.dam.vo.AssetUploadActivityVO;
 import com.twofourseven.dam.vo.AssetUploadActivityVO.RecentAsset;
 import com.twofourseven.dam.vo.AssetUploadActivityVO.SubCategory;
 import com.twofourseven.dam.vo.AssetUploadActivityVO.UploadAttempt;
+import com.twofourseven.dam.vo.AssetUploadSummaryVO;
+import com.twofourseven.dam.vo.AssetUploadSummaryVO.CategoryActivity;
+import com.twofourseven.dam.vo.AssetUploadSummaryVO.UploadEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.stereotype.Service;
@@ -19,8 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -37,17 +47,21 @@ public class AssetActivityService {
 
     private final AssetActivityRepository activityRepository;
     private final CategoryRepository categoryRepository;
+    private final CatalogRepository catalogRepository;
     private final Clock clock;
 
     @Autowired
-    public AssetActivityService(AssetActivityRepository activityRepository, CategoryRepository categoryRepository) {
-        this(activityRepository, categoryRepository, Clock.systemDefaultZone());
+    public AssetActivityService(AssetActivityRepository activityRepository, CategoryRepository categoryRepository,
+                                CatalogRepository catalogRepository) {
+        this(activityRepository, categoryRepository, catalogRepository, Clock.systemDefaultZone());
     }
 
     /** {@code clock} must use the zone asset {@code createdAt} values are written in (the system zone). */
-    AssetActivityService(AssetActivityRepository activityRepository, CategoryRepository categoryRepository, Clock clock) {
+    AssetActivityService(AssetActivityRepository activityRepository, CategoryRepository categoryRepository,
+                         CatalogRepository catalogRepository, Clock clock) {
         this.activityRepository = activityRepository;
         this.categoryRepository = categoryRepository;
+        this.catalogRepository = catalogRepository;
         this.clock = clock;
     }
 
@@ -86,6 +100,91 @@ public class AssetActivityService {
                 category.getId(), category.getName(), attempts, recent, subCategories);
     }
 
+    /**
+     * Spec 021: upload activity broken down by category, for a whole catalog or one category's
+     * subtree. Only categories with uploads in the window are listed, in editor order.
+     *
+     * @param catalogId  the catalog; optional when {@code categoryId} is given
+     * @param categoryId narrows the summary to this category and its subcategories; optional
+     * @param period     as in {@link #activity}; null means 24 hours
+     * @throws BadRequestException       if neither id is given, they don't match, or the period is invalid
+     * @throws ResourceNotFoundException if the catalog or category doesn't exist
+     */
+    @Transactional(readOnly = true)
+    public AssetUploadSummaryVO summary(UUID catalogId, UUID categoryId, String period) {
+        if (catalogId == null && categoryId == null) {
+            throw new BadRequestException("catalogId or categoryId is required");
+        }
+        Duration window = parsePeriod(period);
+        if (categoryId != null) {
+            Category category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Category " + categoryId + " not found"));
+            UUID owner = category.getCatalog().getId();
+            if (catalogId != null && !catalogId.equals(owner)) {
+                throw new BadRequestException("Category " + categoryId + " is not in catalog " + catalogId);
+            }
+            catalogId = owner;
+        } else if (!catalogRepository.existsById(catalogId)) {
+            throw new ResourceNotFoundException("Catalog " + catalogId + " not found");
+        }
+
+        LocalDateTime to = LocalDateTime.now(clock);
+        LocalDateTime from = to.minus(window);
+
+        Map<UUID, List<CategoryOperation>> byCategory = new HashMap<>();
+        for (CategoryOperation op : activityRepository.categoryOperations(catalogId, categoryId, from)) {
+            byCategory.computeIfAbsent(op.categoryId(), id -> new ArrayList<>()).add(op);
+        }
+        Totals totals = byCategory.isEmpty() ? new Totals(0, 0) : activityRepository.totals(catalogId, categoryId, from);
+
+        List<CategoryActivity> categories = new ArrayList<>();
+        for (Category c : inEditorOrder(categoryRepository.findByCatalogIdOrderByPositionAscNameAsc(catalogId))) {
+            List<CategoryOperation> ops = byCategory.get(c.getId());
+            if (ops == null) {
+                continue;
+            }
+            List<UploadEvent> events = ops.stream()
+                    .map(op -> new UploadEvent(op.operationId(), op.uploadedAt(), op.assetCount(),
+                            fileType(op.mediaTypeCount(), op.mediaType())))
+                    .toList();
+            List<Category> path = pathOf(c);
+            categories.add(new CategoryActivity(c.getId(), c.getName(),
+                    path.stream().map(Category::getName).toList(),
+                    path.stream().map(Category::getId).toList(),
+                    events.size(), events.stream().mapToLong(UploadEvent::uploadCount).sum(), events));
+        }
+        return new AssetUploadSummaryVO(window.toMillis(), from, to, catalogId, categoryId,
+                totals.operations(), totals.assets(), categories);
+    }
+
+    /** Depth-first: each category followed by its children, siblings in the given (position) order. */
+    private static List<Category> inEditorOrder(List<Category> categories) {
+        Map<UUID, List<Category>> children = new LinkedHashMap<>();
+        for (Category c : categories) {
+            UUID parentId = c.getParent() == null ? null : c.getParent().getId();
+            children.computeIfAbsent(parentId, id -> new ArrayList<>()).add(c);
+        }
+        List<Category> out = new ArrayList<>(categories.size());
+        addSubtrees(children, null, out);
+        return out;
+    }
+
+    private static void addSubtrees(Map<UUID, List<Category>> children, UUID parentId, List<Category> out) {
+        for (Category c : children.getOrDefault(parentId, List.of())) {
+            out.add(c);
+            addSubtrees(children, c.getId(), out);
+        }
+    }
+
+    /** From the top-level ancestor down to {@code category}. */
+    private static List<Category> pathOf(Category category) {
+        List<Category> path = new ArrayList<>();
+        for (Category c = category; c != null && path.size() < 1000; c = c.getParent()) {
+            path.addFirst(c);
+        }
+        return path;
+    }
+
     static Duration parsePeriod(String period) {
         if (period == null || period.isBlank()) {
             return DEFAULT_PERIOD;
@@ -116,7 +215,11 @@ public class AssetActivityService {
     }
 
     private static String fileType(UploadOperation op) {
-        return op.mediaTypeCount() > 1 ? "mixed" : fileType(op.mediaType());
+        return fileType(op.mediaTypeCount(), op.mediaType());
+    }
+
+    private static String fileType(long mediaTypeCount, String mediaType) {
+        return mediaTypeCount > 1 ? "mixed" : fileType(mediaType);
     }
 
     /** image, video, pdf (the only supported document type), audio or other. */
