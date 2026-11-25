@@ -4,10 +4,12 @@ import com.twofourseven.dam.entities.core.AssetStatus;
 import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.exceptions.GlobalExceptionHandler;
 import com.twofourseven.dam.services.AssetActivityService;
+import com.twofourseven.dam.services.AssetBrowseService;
 import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetUploadActivityVO;
 import com.twofourseven.dam.vo.AssetUploadSummaryVO;
 import com.twofourseven.dam.vo.AssetInstanceDto;
+import com.twofourseven.dam.vo.AssetPageVO;
 import com.twofourseven.dam.vo.AssetVersionVO;
 import com.twofourseven.dam.vo.BulkUploadResultVO;
 import com.twofourseven.dam.vo.SkippedFileVO;
@@ -42,6 +44,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 @ExtendWith(MockitoExtension.class)
 class AssetControllerTest {
@@ -50,6 +53,8 @@ class AssetControllerTest {
     private AssetService service;
     @Mock
     private AssetActivityService activityService;
+    @Mock
+    private AssetBrowseService browseService;
     @InjectMocks
     private AssetController controller;
 
@@ -263,5 +268,66 @@ class AssetControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.categoryId").value(categoryId.toString()))
                 .andExpect(jsonPath("$.categories").isEmpty());
+    }
+
+    @Test
+    void searchPassesEveryFilterAndReturnsThePage() throws Exception {
+        UUID categoryId = UUID.randomUUID();
+        when(browseService.search(any())).thenReturn(new AssetPageVO(List.of(dto(1)), 1, 10, 25, 3));
+
+        mockMvc.perform(get("/assets/search").param("catalogId", catalogId.toString())
+                        .param("categoryId", categoryId.toString()).param("includeSubcategories", "true")
+                        .param("addedFrom", "2026-11-01").param("addedTo", "2026-11-24")
+                        .param("tags", "brand,launch").param("tags", "2026").param("tagMatch", "any")
+                        .param("q", "sun").param("page", "1").param("size", "10").param("sort", "size").param("direction", "asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].originalFilename").value("sunset.jpg"))
+                .andExpect(jsonPath("$.totalItems").value(25))
+                .andExpect(jsonPath("$.totalPages").value(3));
+
+        ArgumentCaptor<AssetBrowseService.SearchQuery> query = ArgumentCaptor.forClass(AssetBrowseService.SearchQuery.class);
+        verify(browseService).search(query.capture());
+        AssetBrowseService.SearchQuery q = query.getValue();
+        org.assertj.core.api.Assertions.assertThat(q.catalogId()).isEqualTo(catalogId);
+        org.assertj.core.api.Assertions.assertThat(q.categoryId()).isEqualTo(categoryId);
+        org.assertj.core.api.Assertions.assertThat(q.includeSubcategories()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(q.addedFrom()).isEqualTo(java.time.LocalDate.of(2026, 11, 1));
+        org.assertj.core.api.Assertions.assertThat(q.addedTo()).isEqualTo(java.time.LocalDate.of(2026, 11, 24));
+        org.assertj.core.api.Assertions.assertThat(q.tags()).containsExactly("brand,launch", "2026");
+        org.assertj.core.api.Assertions.assertThat(q.matchAllTags()).isFalse();
+        org.assertj.core.api.Assertions.assertThat(q.text()).isEqualTo("sun");
+        org.assertj.core.api.Assertions.assertThat(q.page()).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(q.size()).isEqualTo(10);
+        org.assertj.core.api.Assertions.assertThat(q.sort()).isEqualTo("size");
+        org.assertj.core.api.Assertions.assertThat(q.direction()).isEqualTo("asc");
+    }
+
+    @Test
+    void searchNeedsACatalogAndAValidTagMatchAndDates() throws Exception {
+        mockMvc.perform(get("/assets/search")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/assets/search").param("catalogId", catalogId.toString()).param("tagMatch", "some"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/assets/search").param("catalogId", catalogId.toString()).param("addedFrom", "yesterday"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void fileIsStreamedInlineOrAsADownload() throws Exception {
+        when(browseService.file(id)).thenAnswer(inv -> new AssetBrowseService.AssetContent(
+                new java.io.ByteArrayInputStream("jpeg!".getBytes()), "image/jpeg", "sunset.jpg", 5L));
+
+        mockMvc.perform(get("/assets/{id}/file", id))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/jpeg"))
+                .andExpect(content().bytes("jpeg!".getBytes()))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.startsWith("inline")));
+        mockMvc.perform(get("/assets/{id}/file", id).param("download", "true"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.startsWith("attachment")));
+    }
+
+    @Test
+    void missingThumbnailIs404() throws Exception {
+        when(browseService.thumbnail(id)).thenThrow(new com.twofourseven.dam.exceptions.ResourceNotFoundException("no thumbnail"));
+        mockMvc.perform(get("/assets/{id}/thumbnail", id)).andExpect(status().isNotFound());
     }
 }

@@ -123,6 +123,15 @@ returns `AssetUploadSummaryVO`, the window broken down by category: only categor
 parent doesn't repeat its children). `catalogId` covers the whole catalog; `categoryId` narrows it to that subtree
 (the catalog is taken from it; both given must match). Totals count each asset and operation once.
 
+Asset browsing (spec 022, for dam-ui's browse panel): `GET /assets/search?catalogId=` returns an `AssetPageVO`
+(`items`, `page`, `size`, `totalItems`, `totalPages`), filtered by `categoryId` (+ `includeSubcategories`),
+`addedFrom`/`addedTo` (ISO days, inclusive), `tags` (repeated or comma-separated; `tagMatch=all|any`) and `q`
+(file name). Paging is 0-based, `size` 1–200 (default 24), `sort` added|name|size|type (newest/oldest still accepted) with
+`direction` asc|desc (default: added and size descending, name and type ascending). `AssetBrowseService` builds
+JPA `Specification`s (`repositories/AssetSpecifications`, EXISTS subqueries so paging counts stay right).
+`GET /assets/{id}/file[?download=true]` streams the original; `GET /assets/{id}/thumbnail` the JPEG thumbnail
+(404 until it exists).
+
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
 

@@ -3,6 +3,7 @@ package com.twofourseven.dam.repositories;
 import com.twofourseven.dam.entities.core.Asset;
 import com.twofourseven.dam.entities.core.AssetStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,7 +15,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface AssetRepository extends JpaRepository<Asset, UUID> {
+/** {@link JpaSpecificationExecutor} backs the paged browse/search (spec 022, see {@link AssetSpecifications}). */
+public interface AssetRepository extends JpaRepository<Asset, UUID>, JpaSpecificationExecutor<Asset> {
 
     List<Asset> findAllByOrderByCreatedAtDesc();
 

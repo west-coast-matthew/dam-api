@@ -1,12 +1,7 @@
-status: ready
+status: completed
 
 # 022 — api changes for asset browsing
 
 ## Summary
-
-
-## Requirements
-
-
-## Acceptance criteria
+placeholder branch for ui efforts
 
