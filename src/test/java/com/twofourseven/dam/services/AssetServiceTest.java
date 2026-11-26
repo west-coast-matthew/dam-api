@@ -84,7 +84,7 @@ class AssetServiceTest {
 
     @BeforeEach
     void setUp() {
-        UploadedMediaReader reader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofMegabytes(1), 1000));
+        UploadedMediaReader reader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofMegabytes(1), 1000, 500));
         service = new AssetService(assetRepository, assetVersionRepository, catalogRepository, categoryRepository,
                 tagRepository, lightboxItemRepository, interactionRepository, downloadLogRepository, storage, reader,
                 categoryService, thumbnailService);

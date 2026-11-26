@@ -1,4 +1,4 @@
-status: ready
+status: completed
 
 # 009 — Support for lightboxes
 
