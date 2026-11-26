@@ -5,6 +5,7 @@ import com.twofourseven.dam.services.AssetActivityService;
 import com.twofourseven.dam.services.AssetBrowseService;
 import com.twofourseven.dam.services.AssetBrowseService.AssetContent;
 import com.twofourseven.dam.services.AssetBrowseService.SearchQuery;
+import com.twofourseven.dam.services.AssetDownloadService;
 import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetInstanceDto;
 import com.twofourseven.dam.vo.AssetPageVO;
@@ -12,6 +13,7 @@ import com.twofourseven.dam.vo.AssetUploadActivityVO;
 import com.twofourseven.dam.vo.AssetUploadSummaryVO;
 import com.twofourseven.dam.vo.AssetVersionVO;
 import com.twofourseven.dam.vo.BulkUploadResultVO;
+import com.twofourseven.dam.vo.LightboxItemsVO;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.CacheControl;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
@@ -62,6 +65,8 @@ import java.util.UUID;
  *       (default: newest and largest first, names and types A–Z).</li>
  *   <li>{@code GET /assets/{id}/file[?download=true]} and {@code GET /assets/{id}/thumbnail} — the original
  *       file and its JPEG thumbnail (404 until the thumbnail exists).</li>
+ *   <li>{@code POST /assets/download} — spec 009: JSON {@link LightboxItemsVO}; the assets' original files
+ *       as one zip ({@code assets-<yyyyMMdd-HHmmss>.zip}), at most {@code dam.storage.max-download-files}.</li>
  *   <li>{@code PUT /assets/{id}} — JSON metadata update; null fields are unchanged.</li>
  *   <li>{@code PUT /assets/{id}/file} — multipart {@code file}; replaces the file, keeping the old
  *       one as a version when the asset's versioning is enabled.</li>
@@ -74,9 +79,12 @@ public class AssetController {
     private final AssetService service;
     private final AssetActivityService activityService;
     private final AssetBrowseService browseService;
+    private final AssetDownloadService downloadService;
 
-    public AssetController(AssetService service, AssetActivityService activityService, AssetBrowseService browseService) {
+    public AssetController(AssetService service, AssetActivityService activityService, AssetBrowseService browseService,
+                           AssetDownloadService downloadService) {
         this.browseService = browseService;
+        this.downloadService = downloadService;
         this.service = service;
         this.activityService = activityService;
     }
@@ -121,6 +129,12 @@ public class AssetController {
         };
         return browseService.search(new SearchQuery(catalogId, categoryId, includeSubcategories, addedFrom, addedTo,
                 tags, matchAll, q, page, size, sort, direction));
+    }
+
+    /** Several assets' original files as one zip (spec 009). */
+    @PostMapping(path = "/download", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<StreamingResponseBody> download(@RequestBody LightboxItemsVO body) {
+        return ZipDownloads.response(downloadService, downloadService.prepare(body.assetIds()));
     }
 
     @GetMapping("/{id}/file")

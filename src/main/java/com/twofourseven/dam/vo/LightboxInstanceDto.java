@@ -3,11 +3,14 @@ package com.twofourseven.dam.vo;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Request and response body for /lightboxes. {@code catalogId} and {@code userId} are required on
  * create and cannot change. {@code shared} defaults to false. {@code itemCount} is read-only.
+ * {@code assetIds} is write-only: on create, the assets to start the lightbox with, in order
+ * (spec 009); ignored on update and always null in responses.
  */
 public record LightboxInstanceDto(
         UUID id,
@@ -17,5 +20,6 @@ public record LightboxInstanceDto(
         @Size(max = 255) String title,
         String description,
         Boolean shared,
-        Integer itemCount) {
+        Integer itemCount,
+        List<UUID> assetIds) {
 }

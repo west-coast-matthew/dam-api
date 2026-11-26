@@ -38,6 +38,17 @@ Tags are flat, non-hierarchical labels scoped to a catalog. An asset can carry a
 - Tags left without any assets are kept, so they stay available for selection.
 - `GET /assets/search` filters by `tags` with `tagMatch=all|any`.
 
+### Lightboxes
+A lightbox is a user's saved, ordered set of assets from one catalog (a saved "shopping cart"), used to collect assets for a project, review them, or download them together.
+
+- `/lightboxes` has CRUD for the lightbox itself (`LightboxInstanceDto`: `title`, `description`, `shared`, read-only `itemCount`). `POST /lightboxes` may also take `assetIds` to start the lightbox with those assets, in order (dam-ui saves a selection this way).
+- `GET /lightboxes/{id}/items?page=&size=` pages through its assets in lightbox order (`AssetPageVO`, paged like `GET /assets/search`).
+- `POST /lightboxes/{id}/items` (`{ "assetIds": [...] }`) appends assets, skipping ones already present. `DELETE /lightboxes/{id}/items/{assetId}` removes one, and `POST /lightboxes/{id}/items/remove` removes several. `PUT /lightboxes/{id}/items/order` sets the order and must list exactly the lightbox's assets.
+- Assets must belong to the lightbox's catalog (otherwise 400). Removing an item or deleting a lightbox never deletes the asset.
+
+### Group downloads
+`POST /assets/download` (`{ "assetIds": [...] }`) returns the assets' original files as one zip (`assets-<yyyyMMdd-HHmmss>.zip`), and `GET /lightboxes/{id}/download` does the same for a lightbox, in its order, named after its title. Duplicate file names get ` (2)`, ` (3)`... before the extension. At most `dam.storage.max-download-files` (default 500) assets go in one zip.
+
 ## Folder based persistence
 
 The STORAGE_SPECIFICATION.md details the persistence approach used for storing media.

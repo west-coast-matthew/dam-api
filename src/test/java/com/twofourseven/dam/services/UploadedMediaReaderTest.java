@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UploadedMediaReaderTest {
 
-    private final UploadedMediaReader reader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofBytes(100), 1000));
+    private final UploadedMediaReader reader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofBytes(100), 1000, 500));
 
     private static MockMultipartFile file(String name, byte[] content) {
         return new MockMultipartFile("file", name, "application/octet-stream", content);
@@ -110,7 +110,7 @@ class UploadedMediaReaderTest {
 
     // ---- bulk ----
 
-    private final UploadedMediaReader bulkReader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofBytes(100), 3));
+    private final UploadedMediaReader bulkReader = new UploadedMediaReader(new StorageProperties("/unused", DataSize.ofBytes(100), 3, 500));
 
     private List<String> readEach(byte[] zip, List<SkippedFileVO> skippedOut) {
         List<String> seen = new ArrayList<>();

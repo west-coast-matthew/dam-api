@@ -5,6 +5,8 @@ import com.twofourseven.dam.exceptions.BadRequestException;
 import com.twofourseven.dam.exceptions.GlobalExceptionHandler;
 import com.twofourseven.dam.services.AssetActivityService;
 import com.twofourseven.dam.services.AssetBrowseService;
+import com.twofourseven.dam.services.AssetDownloadService;
+import com.twofourseven.dam.services.AssetDownloadService.DownloadBundle;
 import com.twofourseven.dam.services.AssetService;
 import com.twofourseven.dam.vo.AssetUploadActivityVO;
 import com.twofourseven.dam.vo.AssetUploadSummaryVO;
@@ -41,6 +43,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,6 +60,8 @@ class AssetControllerTest {
     private AssetActivityService activityService;
     @Mock
     private AssetBrowseService browseService;
+    @Mock
+    private AssetDownloadService downloadService;
     @InjectMocks
     private AssetController controller;
 
@@ -329,5 +336,28 @@ class AssetControllerTest {
     void missingThumbnailIs404() throws Exception {
         when(browseService.thumbnail(id)).thenThrow(new com.twofourseven.dam.exceptions.ResourceNotFoundException("no thumbnail"));
         mockMvc.perform(get("/assets/{id}/thumbnail", id)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void downloadStreamsAZip() throws Exception {
+        when(downloadService.prepare(List.of(id))).thenReturn(new DownloadBundle("assets-20261125-101500.zip", List.of()));
+
+        var started = mockMvc.perform(post("/assets/download").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assetIds\":[\"" + id + "\"]}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        mockMvc.perform(asyncDispatch(started))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/zip"))
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("attachment; filename=\"assets-20261125-101500.zip\"")));
+    }
+
+    @Test
+    void downloadOfNothingIs400() throws Exception {
+        when(downloadService.prepare(List.of())).thenThrow(new BadRequestException("assetIds must not be empty"));
+
+        mockMvc.perform(post("/assets/download").contentType(MediaType.APPLICATION_JSON).content("{\"assetIds\":[]}"))
+                .andExpect(status().isBadRequest());
     }
 }

@@ -138,6 +138,17 @@ creates in the catalog; on update, null = unchanged and `[]` = clear). `GET /tag
 case-insensitive LIKE "contains" filter, and `limit` is 1–200 (default 50). The JPQL with the counts lives in
 `TagRepository.findUsageByCatalog` (`TagUsage` projection). Tags left without assets are kept.
 
+Lightbox items and group downloads (spec 009, for dam-ui's selection/lightboxes): `POST /lightboxes` takes optional
+write-only `assetIds` (initial items, in order). `GET /lightboxes/{id}/items?page=&size=` returns an `AssetPageVO` in
+lightbox order (`LightboxItemRepository.findAssetsByLightboxId`, by `sortOrder` then `addedAt`). `POST /lightboxes/{id}/items`,
+`POST /lightboxes/{id}/items/remove` and `PUT /lightboxes/{id}/items/order` take a `LightboxItemsVO` (`assetIds`);
+`DELETE /lightboxes/{id}/items/{assetId}` removes one. Adds skip assets already present and must be in the lightbox's
+catalog (400); `sortOrder` is kept 0..n-1. Items are changed through `Lightbox.items` (cascade + orphan removal).
+`POST /assets/download` (`LightboxItemsVO`) and `GET /lightboxes/{id}/download` stream a zip: `AssetDownloadService.prepare`
+/ `LightboxService.download` validate and resolve a `DownloadBundle` in the transaction, then `writeZip` streams it via a
+`StreamingResponseBody` (`controllers/ZipDownloads`), leaving out files it can't read. Names are de-duplicated
+case-insensitively (`a (2).jpg`); capped by `dam.storage.max-download-files`.
+
 `GET /heartbeat` returns `HeartbeatVO`: 200 when every check is UP, 503 otherwise. It currently
 checks the database connection. New dependency checks go in `HeartbeatService.check()`.
 
@@ -155,7 +166,7 @@ checks the database connection. New dependency checks go in `HeartbeatService.ch
 - Never commit real credentials. `config/application.properties` is gitignored.
 - Asset files live under `dam.storage.root-dir` (`StorageProperties`); directories are created on
   first write. Upload limits: `spring.servlet.multipart.*`, `dam.storage.max-extracted-size` (per file inside a
-  zip) and `dam.storage.max-bulk-files`.
+  zip) and `dam.storage.max-bulk-files`. Zip downloads: `dam.storage.max-download-files` (default 500).
 - Logging: console only (`logback-spring.xml`); `com.twofourseven.dam` at DEBUG. Use SLF4J loggers.
 
 ## Testing
